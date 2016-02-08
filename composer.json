@@ -1,0 +1,31 @@
+{
+        "name"          : "kroc/css2xpath"
+,       "description"   : "Translate CSS selector queries into XPath for use with PHP XML / DOM etc."
+,       "keywords"      : ["css", "dom", "templating", "xml", "xpath"]
+,       "homepage"      : "https://github.com/Kroc/css2xpath"
+,       "license"       : "BSD-2-Clause"
+,       "authors"       : [
+                                {
+                                        "name"          : "Kroc Camen"
+                                ,       "email"         : "kroc@camendesign.com"
+                                ,       "homepage"      : "http://camendesign.com"
+                                ,       "role"          : "Developer"
+                                }
+                        ]
+,       "support"       : {
+                                "email"         : "kroc+css2xpath@camendesign.com"
+                        ,       "issues"        : "https://github.com/Kroc/css2xpath/issues"
+                        ,       "source"        : "https://github.com/Kroc/css2xpath"
+                        }
+        
+,       "require"       : {
+                                "ext-mbstring"  : "*"
+                        ,       "ext-pcre"      : "*"
+                        }
+                        
+,       "autoload"      : {
+                                "files" : [
+                                                "src/css2xpath.php"
+                                        ]
+                        }
+}

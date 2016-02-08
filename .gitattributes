@@ -1,0 +1,5 @@
+# Always use Windows line-endings
+* text=crlf
+
+# PHP Archives are binaries to be executed
+*.phar  binary

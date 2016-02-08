@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--    LICENSE: I assert no copyright on this file at all,
+                 it should be considered within the Public Domain
+-->
+
+<!--    the "bootstrap" allows PHPUnit to include the same source file set as loaded by the regular source,
+        without us needing to implicitly duplicate this code in the testing files ("tests/*.php").
+        "autoload.php" has been generated for us, based on the 'autoload' definition in "composer.json"
+        
+        details on this file's format can be found here:
+        https://phpunit.de/manual/current/en/appendixes.configuration.html
+-->
+<phpunit
+        bootstrap      = "vendor/autoload.php"
+        backupGlobals  = "false"
+        colors         = "true"
+        verbose        = "true"
+>
+        <testsuites>
+                <testsuite name="css2xpath Test Suite">
+                        <directory>tests</directory>
+                </testsuite>
+        </testsuites>
+        <filter>
+                <whitelist>
+                        <directory suffix=".php">src/</directory>
+                </whitelist>
+        </filter>
+        <logging>
+                <log type="coverage-html"   target="build/coverage"
+                                            charset="UTF-8" yui="true" highlight="true" />
+                <log type="coverage-text"   target="build/coverage.txt" />
+                <log type="coverage-clover" target="build/logs/clover.xml" />
+                
+                <!-- this will generate a "checklist" of the tests, giving you a quick overview of the boundaries -->
+                <log type="testdox-html"    target="build/logs/testdox.html" />
+                <log type="testdox-text"    target="build/logs/testdox.txt" />
+        </logging>
+</phpunit>

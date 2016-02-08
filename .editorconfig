@@ -1,0 +1,62 @@
+# ".editorconfig" is the best attempt at a standard we've had so far for
+# specifying portable settings in text-editors; some editors support this out
+# of the box, many have plugins -- see the website for details:
+# <editorconfig.org>
+
+#===============================================================================
+
+# LICENSE: I assert no copyright on this file at all,
+#          it should be considered within the Public Domain
+
+# this tells the editor to stop traversing up the folder heirarchy looking for
+# ".editorconfig" files; we want this file to specify my settings, rather than
+# inheriting from some potentially unknown file higher up
+root = true
+
+# the defaults (if supported by the editor-in-question)
+# for all files in this project
+[*]
+charset = utf-8
+end_of_line = crlf
+trim_trailing_whitespace = false
+
+# text / documentation files
+#-------------------------------------------------------------------------------
+[*.{txt,md,rem}]
+# for text / documentation formats, a trailing line adds readability
+insert_final_newline = true
+
+# Markdown
+#-------------------------------------------------------------------------------
+[*.md]
+indent_style = space
+indent_size = 4
+
+# ReMarkable (like MarkDown): http://camendesign.com/remarkable
+#-------------------------------------------------------------------------------
+[*.rem]
+# note that ReMarkable *requires* tabs and not spaces
+# to be able to ascertain true indent levels
+indent_style = tab
+indent_size = tab
+tab_width = 8
+
+# batch files
+#-------------------------------------------------------------------------------
+[*.bat]
+# for "DOS" we opt for the ASCII/ANSI charset for maximum compatibility
+charset = latin1
+
+[*.php]
+#-------------------------------------------------------------------------------
+# you can take your PSR-2 and shove it
+indent_style = space
+indent_size = 8
+insert_final_newline = false
+
+# Visual Basic 6
+#-------------------------------------------------------------------------------
+[*.{bas,cls,ctl,frm}]
+# for my projects that contain VB6 code, here's how these files should be seen
+indent_style = space
+indent_size = 4

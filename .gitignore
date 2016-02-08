@@ -1,0 +1,3 @@
+# PHPUnit will produce a number of files for the test results in '/build',
+# these are not required to be distributed with the project
+build/**
