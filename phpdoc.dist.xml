@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<phpdoc>
+        <parser>
+                <!-- allow incremental building by keeping a structural cache to hand here -->
+                <target>build/phpdoc</target>
+        </parser>
+        <transformer>
+                <target>docs/api</target>
+        </transformer>
+        <files>
+                <!-- source code to parse: -->
+                <directory>src</directory>
+        </files>
+        <transformations>
+                <template name="responsive-twig" />
+        </transformations>
+</phpdoc>

@@ -5,6 +5,7 @@ ECHO.
 php --version
 ECHO.
 
-php bin\phpDocumentor\phpDocumentor.phar -d src -t docs\api
+REM the "phpdoc.dist.xml" file will automatically be used for configuration
+php bin\phpDocumentor\phpDocumentor.phar
 
 PAUSE
