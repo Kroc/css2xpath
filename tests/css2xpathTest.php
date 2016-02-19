@@ -8,45 +8,80 @@
  *              of our project's PHP source files, which is why you don't see any `include` statements up here
  */ 
 
-use kroc\css2xpath as css2xpath;
+use kroc\css2xpath as _;
 
 /**
  * @coversDefaultClass \kroc\css2xpath
  */
-class css2xpathTest extends PHPUnit_Framework_TestCase
+class TranslateQueryTest extends PHPUnit_Framework_TestCase
 {       
+        protected $TranslatorDefault;
+        protected $TestDocument;
+        
+        protected function setUp()
+        {
+                $this->TranslatorDefault = new _\Translator();
+        }
+        
+        protected function tearDown()
+        {
+                unset( $this->TranslatorDefault );
+        }
+        
         /**
          * @test
          * @covers translateQuery
          */
-        function handlesWhitespaceCorrectly ()
+        public function handlesWhitespaceCorrectly ()
         {       
                 //leading & trailing whitespace must be stripped
                 $this->assertEquals(
-                 /* xpath = */  'a'
-                ,/* css   = */  css2xpath\translateQuery( "\ta\r\n" )
+                 /* xpath = */  _\XPATH_DESCENDANT . 'a'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( "\ta\r\n" )
                 );
                 
-                //whitespace between elements constitutes a 'descendent combinator'
+                //whitespace between elements constitutes a 'descendant combinator'
                 $this->assertEquals(
-                 /* xpath = */  'a' . css2xpath\XPATH_DESCENDANT . 'b'
-                ,/* css   = */  css2xpath\translateQuery( "a\r\t\n b" )
+                 /* xpath = */  _\XPATH_DESCENDANT . 'a' . _\XPATH_DESCENDANT . 'b'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( "a\r\t\n b" )
                 );
                 
                 //don't confuse whitespace with use of the comma query separator
                 $this->assertEquals(
-                 /* xpath = */  'a' . css2xpath\XPATH_OR . 'b'
-                ,/* css   = */  css2xpath\translateQuery( "a   ,\r\t\n b" )
+                 /* xpath = */  _\XPATH_DESCENDANT . 'a' . _\XPATH_OR . 'b'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( "a   ,\r\t\n b" )
                 );
         }
         
-        function handlesNamespacesCorrectly ()
-        {
+        /**
+         * @test
+         * @covers translateQuery
+         */
+        public function handlesAttributeSelectorsCorrectly ()
+        {       
+                //straight-forward expected behaviour test
+                $this->assertEquals(
+                 /* xpath = */  _\XPATH_DESCENDANT . 'a[@href]'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'a[href]' )
+                );
+                
+                $this->assertEquals(
+                 /* xpath = */  _\XPATH_DESCENDANT . '[@href][@style]'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( '[href][style]' )
+                );
                 
         }
         
-        function handlesUnicodeCorrectly ()
+        /**
+         * @test
+         * @covers translateQuery
+         */
+        public function handlesPseduoElementsCorrectly ()
         {
+                $this->assertEquals(
+                 /* xpath = */  _\XPATH_DESCENDANT . 'a[@href]'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( '*::nth-child(odd)' )
+                );
                 
         }
 }
