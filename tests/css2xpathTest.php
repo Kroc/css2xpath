@@ -36,19 +36,19 @@ class TranslateQueryTest extends PHPUnit_Framework_TestCase
         {       
                 //leading & trailing whitespace must be stripped
                 $this->assertEquals(
-                 /* xpath = */  _\XPATH_DESCENDANT . 'a'
+                 /* xpath = */  _\XPATH_AXIS_DESCENDANT . 'a'
                 ,/* css   = */  $this->TranslatorDefault->translateQuery( "\ta\r\n" )
                 );
                 
                 //whitespace between elements constitutes a 'descendant combinator'
                 $this->assertEquals(
-                 /* xpath = */  _\XPATH_DESCENDANT . 'a' . _\XPATH_DESCENDANT . 'b'
+                 /* xpath = */  _\XPATH_AXIS_DESCENDANT . 'a' . _\XPATH_AXIS_DESCENDANT . 'b'
                 ,/* css   = */  $this->TranslatorDefault->translateQuery( "a\r\t\n b" )
                 );
                 
                 //don't confuse whitespace with use of the comma query separator
                 $this->assertEquals(
-                 /* xpath = */  _\XPATH_DESCENDANT . 'a' . _\XPATH_OR . 'b'
+                 /* xpath = */  _\XPATH_AXIS_DESCENDANT . 'a' . _\XPATH_UNION . 'b'
                 ,/* css   = */  $this->TranslatorDefault->translateQuery( "a   ,\r\t\n b" )
                 );
         }
@@ -61,12 +61,12 @@ class TranslateQueryTest extends PHPUnit_Framework_TestCase
         {       
                 //straight-forward expected behaviour test
                 $this->assertEquals(
-                 /* xpath = */  _\XPATH_DESCENDANT . 'a[@href]'
+                 /* xpath = */  _\XPATH_AXIS_DESCENDANT . 'a[@href]'
                 ,/* css   = */  $this->TranslatorDefault->translateQuery( 'a[href]' )
                 );
                 
                 $this->assertEquals(
-                 /* xpath = */  _\XPATH_DESCENDANT . '[@href][@style]'
+                 /* xpath = */  _\XPATH_AXIS_DESCENDANT . '[@href][@style]'
                 ,/* css   = */  $this->TranslatorDefault->translateQuery( '[href][style]' )
                 );
                 
@@ -79,8 +79,8 @@ class TranslateQueryTest extends PHPUnit_Framework_TestCase
         public function handlesPseduoElementsCorrectly ()
         {
                 $this->assertEquals(
-                 /* xpath = */  _\XPATH_DESCENDANT . 'a[@href]'
-                ,/* css   = */  $this->TranslatorDefault->translateQuery( '*::nth-child(odd)' )
+                 /* xpath = */  _\XPATH_AXIS_DESCENDANT . 'a[@href]'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'tr > ::nth-child(even)' )
                 );
                 
         }
