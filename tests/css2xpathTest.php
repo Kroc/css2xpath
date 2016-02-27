@@ -31,6 +31,467 @@ class TranslateQueryTest extends PHPUnit_Framework_TestCase
         /**
          * @test
          * @covers translateQuery
+         *
+         * Walk through the basics of each type of CSS selector.
+         * This is intended more as a feature checklist to ensure I haven't forgotten a CSS selector;
+         * the other test routiness will try and 'break' the parser
+         */
+        public function conformsToExpectedBehvaiour ()
+        {
+                /* CSS Type Selectors:
+                 * ------------------------------------------------------------------------------------------------------ */
+                
+                $this->assertEquals(
+                 /* xpath = */  _\XPATH_AXIS_DESCENDANT . _\XPATH_NODE_ANY
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( '*' )
+                ,/* error = */  'CSS Universal Type selector'
+                );
+                $this->assertEquals(
+                 /* xpath = */  _\XPATH_AXIS_DESCENDANT . 'e'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'e' )
+                ,/* error = */  'CSS Type selector'
+                );
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( '*|e' )
+                ,/* error = */  'CSS Universal Namespace Type selector'
+                );
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( '*|*' )
+                ,/* error = */  'CSS Universal Namespace & Type selector'
+                );
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( '|*' )
+                ,/* error = */  'CSS Namespaceless Universal Type selector'
+                );
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( '|e' )
+                ,/* error = */  'CSS Namespaceless Type selector'
+                );
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'a, b' )
+                ,/* error = */  'CSS Selector Groups'
+                );
+                
+                /* CSS Attribute Selectors:
+                 * ------------------------------------------------------------------------------------------------------ */
+                
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'e[attr]' )
+                ,/* error = */  'CSS Attribute selector'
+                );
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'e[|attr]' )
+                ,/* error = */  'CSS Namespaceless Attribute selector'
+                );
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'e[*|attr]' )
+                ,/* error = */  'CSS Universal Namespace Attribute selector'
+                );
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'e[ns|attr]' )
+                ,/* error = */  'CSS Namespace Attribute selector'
+                );
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'e[attr=value]' )
+                ,/* error = */  'CSS Attribute Value selector'
+                );
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'e[attr~=value]' )
+                ,/* error = */  'CSS Attribute Whitespace Value selector'
+                );
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'e[attr|=value]' )
+                ,/* error = */  'CSS Attribute Subcode Value selector'
+                );
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'e[attr^=value]' )
+                ,/* error = */  'CSS Substring Matching Attribute "Begins With" selector'
+                );
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'e[attr$=value]' )
+                ,/* error = */  'CSS Substring Matching Attribute "Ends With" selector'
+                );
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'e[attr*=value]' )
+                ,/* error = */  'CSS Substring Matching Attribute "Contains" selector'
+                );
+                
+                /* CSS Class & ID Selectors:
+                 * ------------------------------------------------------------------------------------------------------ */
+                
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'e.class' )
+                ,/* error = */  'CSS Class selector'
+                );
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'e.class.more' )
+                ,/* error = */  'CSS multiple Class selector'
+                );
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'e#id' )
+                ,/* error = */  'CSS ID selector'
+                );
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'e#id.class' )
+                ,/* error = */  'CSS ID & Class selector'
+                );
+                
+                /* CSS Pseudo-Class Selectors:
+                 * ------------------------------------------------------------------------------------------------------ */
+                
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'a:link' )
+                ,/* error = */  'CSS Dynamic Pseudo-Class Link selector'
+                );
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'a:visited' )
+                ,/* error = */  'CSS Dynamic Pseudo-Class Link Visited selector'
+                );
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'a:hover' )
+                ,/* error = */  'CSS Dynamic Pseudo-Class User-Action Hover selector'
+                );
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'a:active' )
+                ,/* error = */  'CSS Dynamic Pseudo-Class User-Action Active selector'
+                );
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'a:focus' )
+                ,/* error = */  'CSS Dynamic Pseudo-Class User-Action Focus selector'
+                );
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'a:hover' )
+                ,/* error = */  'CSS Target Pseudo-Class selector'
+                );
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'e:lang(en)' )
+                ,/* error = */  'CSS Language Pseudo-Class selector'
+                );
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'i:enabled' )
+                ,/* error = */  'CSS UI-Element State Enabled Pseudo-Class selector'
+                );
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'i:disabled' )
+                ,/* error = */  'CSS UI-Element State Disabled Pseudo-Class selector'
+                );
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'i:checked' )
+                ,/* error = */  'CSS UI-Element State Checked Pseudo-Class selector'
+                );
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'i:indeterminate' )
+                ,/* error = */  'CSS UI-Element State Indeterminate Pseudo-Class selector'
+                );
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'e:root' )
+                ,/* error = */  'CSS Root Structural Pseudo-Class selector'
+                );
+                
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'e:nth-child(1)' )
+                ,/* error = */  'CSS Nth-Child (first) Structural Pseudo-Class selector'
+                );
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'e:nth-child(odd)' )
+                ,/* error = */  'CSS Nth-Child (odd) Structural Pseudo-Class selector'
+                );
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'e:nth-child(even)' )
+                ,/* error = */  'CSS Nth-Child (even) Structural Pseudo-Class selector'
+                );
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'e:nth-child(n)' )
+                ,/* error = */  'CSS Nth-Child ("n") Structural Pseudo-Class selector'
+                );
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'e:nth-child(n+1)' )
+                ,/* error = */  'CSS Nth-Child ("n+1") Structural Pseudo-Class selector'
+                );
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'e:nth-child(2n)' )
+                ,/* error = */  'CSS Nth-Child ("2n") Structural Pseudo-Class selector'
+                );
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'e:nth-child(2n+1)' )
+                ,/* error = */  'CSS Nth-Child ("2n+1") Structural Pseudo-Class selector'
+                );
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'e:nth-child(2n-1)' )
+                ,/* error = */  'CSS Nth-Child ("2n-1") Structural Pseudo-Class selector'
+                );
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'e:nth-child(-2n)' )
+                ,/* error = */  'CSS Nth-Child ("-2n") Structural Pseudo-Class selector'
+                );
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'e:nth-child(-n)' )
+                ,/* error = */  'CSS Nth-Child ("-n") Structural Pseudo-Class selector'
+                );
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'e:nth-child(+2)' )
+                ,/* error = */  'CSS Nth-Child ("+2") Structural Pseudo-Class selector'
+                );
+                
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'e:nth-last-child(1)' )
+                ,/* error = */  'CSS Nth-Last-Child (first) Structural Pseudo-Class selector'
+                );
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'e:nth-last-child(odd)' )
+                ,/* error = */  'CSS Nth-Last-Child (odd) Structural Pseudo-Class selector'
+                );
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'e:nth-last-child(even)' )
+                ,/* error = */  'CSS Nth-Last-Child (even) Structural Pseudo-Class selector'
+                );
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'e:nth-last-child(n)' )
+                ,/* error = */  'CSS Nth-Last-Child ("n") Structural Pseudo-Class selector'
+                );
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'e:nth-last-child(n+1)' )
+                ,/* error = */  'CSS Nth-Last-Child ("n+1") Structural Pseudo-Class selector'
+                );
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'e:nth-last-child(2n)' )
+                ,/* error = */  'CSS Nth-Last-Child ("2n") Structural Pseudo-Class selector'
+                );
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'e:nth-last-child(2n+1)' )
+                ,/* error = */  'CSS Nth-Last-Child ("2n+1") Structural Pseudo-Class selector'
+                );
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'e:nth-last-child(2n-1)' )
+                ,/* error = */  'CSS Nth-Last-Child ("2n-1") Structural Pseudo-Class selector'
+                );
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'e:nth-last-child(-2n)' )
+                ,/* error = */  'CSS Nth-Last-Child ("-2n") Structural Pseudo-Class selector'
+                );
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'e:nth-last-child(-n)' )
+                ,/* error = */  'CSS Nth-Last-Child ("-n") Structural Pseudo-Class selector'
+                );
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'e:nth-last-child(+2)' )
+                ,/* error = */  'CSS Nth-Last-Child ("+2") Structural Pseudo-Class selector'
+                );
+                
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'e:nth-of-type(1)' )
+                ,/* error = */  'CSS Nth-Of-Type (first) Structural Pseudo-Class selector'
+                );
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'e:nth-of-type(odd)' )
+                ,/* error = */  'CSS Nth-Of-Type (odd) Structural Pseudo-Class selector'
+                );
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'e:nth-of-type(even)' )
+                ,/* error = */  'CSS Nth-Of-Type (even) Structural Pseudo-Class selector'
+                );
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'e:nth-of-type(n)' )
+                ,/* error = */  'CSS Nth-Of-Type ("n") Structural Pseudo-Class selector'
+                );
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'e:nth-of-type(n+1)' )
+                ,/* error = */  'CSS Nth-Of-Type ("n+1") Structural Pseudo-Class selector'
+                );
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'e:nth-of-type(2n)' )
+                ,/* error = */  'CSS Nth-Of-Type ("2n") Structural Pseudo-Class selector'
+                );
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'e:nth-of-type(2n+1)' )
+                ,/* error = */  'CSS Nth-Of-Type ("2n+1") Structural Pseudo-Class selector'
+                );
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'e:nth-of-type(2n-1)' )
+                ,/* error = */  'CSS Nth-Of-Type ("2n-1") Structural Pseudo-Class selector'
+                );
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'e:nth-of-type(-2n)' )
+                ,/* error = */  'CSS Nth-Of-Type ("-2n") Structural Pseudo-Class selector'
+                );
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'e:nth-of-type(-n)' )
+                ,/* error = */  'CSS Nth-Of-Type ("-n") Structural Pseudo-Class selector'
+                );
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'e:nth-of-type(+2)' )
+                ,/* error = */  'CSS Nth-Of-Type ("+2") Structural Pseudo-Class selector'
+                );
+                
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'e:nth-last-of-type(1)' )
+                ,/* error = */  'CSS Nth-Last-Of-Type (first) Structural Pseudo-Class selector'
+                );
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'e:nth-last-of-type(odd)' )
+                ,/* error = */  'CSS Nth-Last-Of-Type (odd) Structural Pseudo-Class selector'
+                );
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'e:nth-last-of-type(even)' )
+                ,/* error = */  'CSS Nth-Last-Of-Type (even) Structural Pseudo-Class selector'
+                );
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'e:nth-last-of-type(n)' )
+                ,/* error = */  'CSS Nth-Last-Of-Type ("n") Structural Pseudo-Class selector'
+                );
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'e:nth-last-of-type(n+1)' )
+                ,/* error = */  'CSS Nth-Last-Of-Type ("n+1") Structural Pseudo-Class selector'
+                );
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'e:nth-last-of-type(2n)' )
+                ,/* error = */  'CSS Nth-Last-Of-Type ("2n") Structural Pseudo-Class selector'
+                );
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'e:nth-last-of-type(2n+1)' )
+                ,/* error = */  'CSS Nth-Last-Of-Type ("2n+1") Structural Pseudo-Class selector'
+                );
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'e:nth-last-of-type(2n-1)' )
+                ,/* error = */  'CSS Nth-Last-Of-Type ("2n-1") Structural Pseudo-Class selector'
+                );
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'e:nth-last-of-type(-2n)' )
+                ,/* error = */  'CSS Nth-Last-Of-Type ("-2n") Structural Pseudo-Class selector'
+                );
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'e:nth-last-of-type(-n)' )
+                ,/* error = */  'CSS Nth-Last-Of-Type ("-n") Structural Pseudo-Class selector'
+                );
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'e:nth-of-type(+2)' )
+                ,/* error = */  'CSS Nth-Last-Of-Type ("+2") Structural Pseudo-Class selector'
+                );
+                
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'e:first-child' )
+                ,/* error = */  'CSS First-Child Structural Pseudo-Class selector'
+                );
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'e:last-child' )
+                ,/* error = */  'CSS Last-Child Structural Pseudo-Class selector'
+                );
+                
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'e:first-of-type' )
+                ,/* error = */  'CSS First-Of-Type Structural Pseudo-Class selector'
+                );
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'e:last-of-type' )
+                ,/* error = */  'CSS Last-Of-Type Structural Pseudo-Class selector'
+                );
+                
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'e:only-child' )
+                ,/* error = */  'CSS Only Child Structural Pseudo-Class selector'
+                );
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'e:only-of-type' )
+                ,/* error = */  'CSS Only-Of-Type Structural Pseudo-Class selector'
+                );
+                
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'e:empty' )
+                ,/* error = */  'CSS Empty Structural Pseudo-Class selector'
+                );
+                
+                $this->assertEquals(
+                 /* xpath = */  '?'
+                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'x:not(y)' )
+                ,/* error = */  'CSS Negation Pseudo-Class selector'
+                );
+        }
+        
+        /**
+         * @test
+         * @covers translateQuery
          */
         public function handlesWhitespaceCorrectly ()
         {       
@@ -53,37 +514,6 @@ class TranslateQueryTest extends PHPUnit_Framework_TestCase
                 );
         }
         
-        /**
-         * @test
-         * @covers translateQuery
-         */
-        public function handlesAttributeSelectorsCorrectly ()
-        {       
-                //straight-forward expected behaviour test
-                $this->assertEquals(
-                 /* xpath = */  _\XPATH_AXIS_DESCENDANT . 'a[@href]'
-                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'a[href]' )
-                );
-                
-                $this->assertEquals(
-                 /* xpath = */  _\XPATH_AXIS_DESCENDANT . '[@href][@style]'
-                ,/* css   = */  $this->TranslatorDefault->translateQuery( '[href][style]' )
-                );
-                
-        }
-        
-        /**
-         * @test
-         * @covers translateQuery
-         */
-        public function handlesPseduoElementsCorrectly ()
-        {
-                $this->assertEquals(
-                 /* xpath = */  _\XPATH_AXIS_DESCENDANT . 'a[@href]'
-                ,/* css   = */  $this->TranslatorDefault->translateQuery( 'tr > ::nth-child(even)' )
-                );
-                
-        }
 }
 
 ?>
