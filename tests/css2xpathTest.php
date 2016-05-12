@@ -14,70 +14,20 @@
    test code causing a test to give wrong results */
 error_reporting( E_ALL | E_STRICT );
 
-require_once 'domserialize.php';
-
-//shorthand the namespace
-use kroc\css2xpath as css2xpath;
+require_once 'css2xpathPHPUnit.php';
 
 /**
  * @coversDefaultClass \kroc\css2xpath
  */
 class TranslateQueryTest
-        extends PHPUnit_Framework_TestCase
+        extends CSS2XPath_TestCase //PHPUnit_Framework_TestCase
 {
-        private static $TranslatorDefault;
-        
-        public static function setUpBeforeClass()
-        {
-                //create a css2xpath translator
-                self::$TranslatorDefault = new css2xpath\Translator(
-                        css2xpath\XPATH_AXIS_DESCENDANT
-                );
-        }
-        
         /**
          * Rather than just compare CSS > XPath strings, which relies on us formulating the XPath equivalents manually
          * (prone to fault), we apply the XPath string we generate to a test document and check the nodes returned.
          * This way, we only need to confirm that our CSS tests match the expeted elements in the test document
          * (easily and visually done), with which the XPath can be automatically confirmed against
-         *
-         * @param       string  $css            CSS selector to convert to XML and test
-         * @param       string  $serialized_xml A test XML document, in serialized form
-         * @param       string  $expected       Serialized representation of the [expected] result of the XPath query
          */
-        private function serializedXMLTest ($css, $serialized_xml, $expected)
-        {
-                //this is the CSS we're going to test
-                fwrite( STDOUT, " css   : $css\n" );
-                
-                //do the CSS to XPath translation
-                $xpath = static::$TranslatorDefault->translateQuery( $css );
-                
-                //this is the XPath we got
-                fwrite( STDOUT, " xpath : $xpath\n" );
-                //this is the document to test the XPath against
-                fwrite( STDOUT, " in    : $serialized_xml\n" );
-                
-                //convert the serialised XML into a proper XML document tree
-                $document = DOMDocumentSerialize::deserialize( $serialized_xml );
-                
-                //apply the XPath; this will give us a list of nodes it selected
-                $xquery = new DOMXPath( $document );
-                $nodes = $xquery->query(
-                        '//DOMDocumentSerialize' . $xpath
-                ,       $document->documentElement
-                );
-                
-                //re-serialize the XPath result
-                $result = DOMDocumentSerialize::serializeDOMNodeList( $nodes );
-                //clean-up
-                unset( $nodes, $xquery, $document );
-                
-                fwrite( STDOUT, " out   : $result\n\n" );
-                
-                //did the XPath result match the expected result?
-                return ($expected == $result);
-        }
         
         /**
          * @test
@@ -91,18 +41,18 @@ class TranslateQueryTest
         {
                 /* CSS Type Selectors:
                  * ------------------------------------------------------------------------------------------------------ */
-                $this->assertTrue( $this->serializedXMLTest(
+                //'CSS Universal Type selector'
+                $this->assertCSS2XPathSerializedXMLEquals(
                         '*'
                 ,       '<e : 1st-level <f : 2nd-level <g : 3rd-level >>>'
                 ,       '<e : 1st-level <f : 2nd-level <g : 3rd-level >>><f : 2nd-level <g : 3rd-level >><g : 3rd-level >'
-                ),      'CSS Universal Type selector'
                 );
                 
-                $this->assertTrue( $this->serializedXMLTest(
+                //'CSS Type selector'
+                $this->assertCSS2XPathSerializedXMLEquals(
                         'f'
                 ,       '<e : 1st-level <f : 2nd-level <g : 3rd-level >><f : 2nd-level >>'
                 ,       '<f : 2nd-level <g : 3rd-level >><f : 2nd-level >'
-                ),      'CSS Type selector'
                 );
 /*                $this->assertTrue( $this->XMLTest(
                         '*|e'
