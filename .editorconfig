@@ -8,7 +8,7 @@
 # LICENSE: I assert no copyright on this file at all,
 #          it should be considered within the Public Domain
 
-# this tells the editor to stop traversing up the folder heirarchy looking for
+# this tells the editor to stop traversing up the folder hierarchy looking for
 # ".editorconfig" files; we want this file to specify my settings, rather than
 # inheriting from some potentially unknown file higher up
 root = true
@@ -29,10 +29,12 @@ insert_final_newline = true
 # Markdown
 #-------------------------------------------------------------------------------
 [*.md]
+# this is pretty much required for Markdown,
+# otherwise your indent blocks can break
 indent_style = space
 indent_size = 4
 
-# ReMarkable (like MarkDown): http://camendesign.com/remarkable
+# ReMarkable (like MarkDown): <camendesign.com/remarkable>
 #-------------------------------------------------------------------------------
 [*.rem]
 # note that ReMarkable *requires* tabs and not spaces
@@ -56,7 +58,7 @@ insert_final_newline = false
 
 # Visual Basic 6
 #-------------------------------------------------------------------------------
-[*.{bas,cls,ctl,frm}]
+[*.{bas,cls,ctl,frm,vbp}]
 # for my projects that contain VB6 code, here's how these files should be seen
 indent_style = space
 indent_size = 4

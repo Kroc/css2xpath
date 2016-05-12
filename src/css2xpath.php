@@ -5,8 +5,8 @@
  * @copyright   Copyright 2016, Kroc Camen, all rights reserved
  * @author      Kroc Camen <kroc@camendesign.com>
  * @license     BSD-2-Clause
- * 
- * @version     0.1.0
+ *
+ * @version     0.0.0
  *              ^ ^ ^-- fixes
  *              | '---- features
  *              '------ api
@@ -29,6 +29,23 @@ namespace kroc\css2xpath;
 
 /* Exceptions:
    ---------------------------------------------------------------------------------------------------------------------- */
+/* when using css2xpath, you will have to 'catch' errors that would otherwise halt your script.
+ * If you're not familiar with Exceptions, the basic pattern looks like this:
+ *
+ *      //if an error occurs within the `try` block,
+ *      //we will skip to the `catch` block to handle the error
+ *      try {
+ *              $xpath = kroc\css2xpath\translateQuery( 'a[href]' );
+ *
+ *      } catch (kroc\css2xpath\InvalidCSSException $e) {
+ *              //...
+ *
+ *      } catch (kroc\css2xpath\UnimplementedCSSException $e) {
+ *              //...
+ *
+ *      } catch (kroc\css2xpath\UntranslatableCSSException $e) {
+ *              //...
+ *      }
 /**
  * Exception thrown when a query contains CSS we don't recognise
  */
@@ -66,42 +83,41 @@ const XPATH_NODE_ANYNS          = "[local-name()='%s']";
 const XPATH_FIRST               = '[1]';
 
 /** Just the universal selector "*" */
-const XPATH_NODE_ANY    = '*';
+const XPATH_NODE_ANY            = '*';
 /** Xpath template to select an element that has a particular attribute.
   * `sprintf` is used to populate the data, the first argument is the attribute name */
-const XPATH_ATTR        = '[@%s]';
+const XPATH_ATTR                = '[@%s]';
 /** XPath template to select an element that has a particular attribute beginning with a particular string.
   * `sprintf` is used to populate the data; the first argument is the attribute name, the second argument is the string */
-const XPATH_ATTR_BEGIN  = "[starts-with( @%1s, '%2s' )]";
+const XPATH_ATTR_BEGIN          = "[starts-with( @%1s, '%2s' )]";
 /** XPath template to select an element that has a particular attribute containing a particular string.
-  * `sprintf` is used to populate the data the first argument is the attribute name, the second argument is the string */ 
-const XPATH_ATTR_MATCH  = "[contains( @%1s, '%2s' )]";
+  * `sprintf` is used to populate the data the first argument is the attribute name, the second argument is the string */
+const XPATH_ATTR_MATCH          = "[contains( @%1s, '%2s' )]";
 /** XPath template to select a hyphen-separated list of values (`sprintf` is used to populate the name and value) */
-const XPATH_ATTR_DASH   = "[@%1s='%2s' or starts-with( @%1s, concat( '%2s', '-' ) )]";
+const XPATH_ATTR_DASH           = "[@%1s='%2s' or starts-with( @%1s, concat( '%2s', '-' ) )]";
 /** XPath template to select an element based on the attribute value ending with a particular string.
   * `sprintf` is used to populate the data: `%1s` is the attribute name and %2s is the string */
-const XPATH_ATTR_END    = "[substring( @%1s, string-length( @%1s ) - string-length( '%2s' ) - 1) = '%2s']";
+const XPATH_ATTR_END            = "[substring( @%1s, string-length( @%1s ) - string-length( '%2s' ) - 1) = '%2s']";
 /** XPath template to select an element based on its attribute (`sprintf` is used to populate the name and value) */
-const XPATH_ATTR_EQUAL  = "[@%1s='%2s']";
+const XPATH_ATTR_EQUAL          = "[@%1s='%2s']";
 /** XPath template to select a space-separated list of values (`sprintf` is used to populate the name and value) */
-const XPATH_ATTR_SPACE  = "[contains( concat( ' ', normalize-space( @%1s ), ' ' ), ' %2s ' )]";
+const XPATH_ATTR_SPACE          = "[contains( concat( ' ', normalize-space( @%1s ), ' ' ), ' %2s ' )]";
 /** XPath template to select a particular CSS class (`sprintf` is used to insert the class name) */
-const XPATH_CLASS       = "[contains( concat( ' ', normalize-space( @class ), ' '), ' %s ' )]";
+const XPATH_CLASS               = "[contains( concat( ' ', normalize-space( @class ), ' '), ' %s ' )]";
 /** XPath equivalent of CSS's `:empty` psuedo-class */
-const XPATH_EMPTY       = '[not(*) and not( normalize-space() )]';
+const XPATH_EMPTY               = '[not(*) and not( normalize-space() )]';
 /** XPath template to select a particular CSS ID (`sprintf` is used to insert the ID) */
-const XPATH_ID          = "[@id='%s']";
+const XPATH_ID                  = "[@id='%s']";
 /** XPath's namespace separator */
-const XPATH_NAMESPACE   = ':';
+const XPATH_NAMESPACE           = ':';
 /** XPath equivalent to CSS's `::nth-child(even)` psuedo-element selector */
-const XPATH_NTH_EVEN    = '[position() mod 2=0 and position()>=0]';
+const XPATH_NTH_EVEN            = '[position() mod 2=0 and position()>=0]';
 /** XPath equivalent to CSS's `::nth-child(odd)` psuedo-element selector */
-const XPATH_NTH_ODD     = '[(count( ./preceding-sibling::* ) + 1) mod 2 = 1]';
+const XPATH_NTH_ODD             = '[(count( ./preceding-sibling::* ) + 1) mod 2 = 1]';
 /** XPath equivalent to the separation of queries by a comma in CSS */
+const XPATH_UNION               = ' | ';
 
-const XPATH_UNION        = ' | ';
-
-
+/** @todo: allowing/disallowing CSS features? */
 const ALLOW_CSS_DEPRICATED      = 2 ^ 0;
 /** Enables CSS Namespaces in all accepted places, including CSS2+ Attribute selectors, e.g. `e[ns|attr]` */
 const ALLOW_CSS_NAMESPACES      = 2 ^ 1;
@@ -149,13 +165,18 @@ const ALLOW_CSS_LEVEL4          = ALLOW_CSS_LEVEL3;
 
 /**
  * The brains of the operation. It will encapsulate the settings you choose for CSS to XPath translation.
+ * You cannot change the settings after class insantiation because:
+ *
+ * 1.   This would invalidate the internal cache
+ * 2.   You will shoot yourself in the foot if you re-use the object elsewhere
+ *      without realising the settings are (possibly) different
  *
  * @api
  * @todo        feature : Handle default namespaces
  * @todo        feature : Provide a parameter to set the maximum CSS Selector Level supported / allowed
  */
 class Translator
-{        
+{
         /* An XPath query consists of one or more 'Steps', with each Step being made up of 3 parts,
            which *must* be, in order: 1. An 'Axis', 2. A 'Node Test' and 3. Zero or more 'Predicates'.
            
@@ -180,25 +201,53 @@ class Translator
           * therefore we cache 'input => output' */
         private $cache = Array();
         
-        /** @internal A lookup table to map CSS attribute selector comparisons to the equivalent XPath template.
-          * If this were PHP 7 we could make this a constant array */
-        private $attrs = Array(
-                 '='    =>      namespace\XPATH_ATTR_EQUAL
-        ,       '~='    =>      namespace\XPATH_ATTR_SPACE
-        ,       '|='    =>      namespace\XPATH_ATTR_DASH
-        ,       '^='    =>      namespace\XPATH_ATTR_BEGIN
-        ,       '$='    =>      namespace\XPATH_ATTR_END
-        ,       '*='    =>      namespace\XPATH_ATTR_MATCH
+        /** @internal A lookup table to map CSS attribute selector comparisons to the equivalent XPath template */
+        private static $attrs = Array(
+                 '='    => namespace\XPATH_ATTR_EQUAL
+        ,       '~='    => namespace\XPATH_ATTR_SPACE
+        ,       '|='    => namespace\XPATH_ATTR_DASH
+        ,       '^='    => namespace\XPATH_ATTR_BEGIN
+        ,       '$='    => namespace\XPATH_ATTR_END
+        ,       '*='    => namespace\XPATH_ATTR_MATCH
         );
         
-        public function __construct ()
-        {
-                 
+        /** the default Axis determines the initial search behaviour of an XPath query;
+          * CSS includes the context node in its search -- i.e. in document beginning with `<html>`,
+          * the CSS selector `html` will select the root element, rather than searching only its children
+          * -- this corresponds to XPath's `descendant-or-self` Axis */
+        private $default_axis;
+        
+        /**
+         * @param       string  $default_axis           Must be an `XPATH_AXIS_*` constant.
+         *                                              This string will be prepended to every XPath output. In essence,
+         *                                              this will control where the XPath begins searching and the default
+         *                                              value of `XPATH_AXIS_DESCENDANTSELF` reflects the behaviour of CSS
+         *
+         * @throws      \InvalidArgumentException
+         */
+        public function __construct (
+                $default_axis = namespace\XPATH_AXIS_DESCENDANTSELF
+        ) {
+                //verify that the `$default_axis` argument is one of the allowed constant values
+                switch ($default_axis) {
+                        case namespace\XPATH_AXIS_CHILD:
+                        case namespace\XPATH_AXIS_DESCENDANT:
+                        case namespace\XPATH_AXIS_DESCENDANTSELF:
+                        case namespace\XPATH_AXIS_SELF:
+                        case namespace\XPATH_AXIS_SIBLING:
+                                //save this choice for use when translating CSS
+                                $this->default_axis = $default_axis;
+                                break;
+                        default:
+                                throw new \InvalidArgumentException(
+                                        '`$default_axis` argument must be one of the `XPATH_AXIS_*` constants.'
+                                );
+                }
         }
         
         /**
          * Converts CSS queries into equivalent XPath (1.0)
-         * 
+         *
          * @api
          * @param       string  $query          The CSS query to translate into XPath
          * @return      string                  An XPath query string
@@ -209,13 +258,15 @@ class Translator
          */
         public function translateQuery ($query)
         {
+                //leading & trailing whitespace is stripped so as not to be confused for a CSS 'descendant combinator'
+                $query = trim( $query );
+                
+                //@todo: return what for an empty query?
+                
                 //return from cache if possible:
                 if (in_array( $query, $this->cache )) return $this->cache[$query];
                 
-                $results[] = Array ( $this::STEP_AXIS, namespace\XPATH_AXIS_DESCENDANTSELF );
-                
-                //leading & trailing whitespace is stripped so as not to be confused for a CSS 'descendant combinator'
-                $query = trim( $query );
+                $results[] = Array ( $this::STEP_AXIS, $this->default_axis );
                 
                 $offset = 0;
                 while (preg_match( "/
@@ -223,10 +274,6 @@ class Translator
                                 # TODO: rework this to not allow Unicode punctuation or whitespace etc.
                                 [^\s!\"#$%&'()*+,.\/:;<=>?@\[\]^`{|}~]+
                         ))
-                        
-                        # so that we don`t confuse one part of the CSS with another,
-                        # we always start with the first character in the remaining query
-                        ^
                         
                         (?:
                         
@@ -321,7 +368,7 @@ class Translator
                                                                 \s*
                                                                 (?P<b> [-+]? \d+)?
                                                         
-                                                        #       Selects exaclty the element index given in <a>, no 'n' 
+                                                        #       Selects exaclty the element index given in <a>, no 'n'
                                                         
                                                         |       (?P<a> [-+]? \d+)
                                                         )
@@ -413,19 +460,22 @@ class Translator
                         )
                         
                         # REGEX FLAGS:
+                        # A - Anchor
+                        #     (so that we don`t confuse one part of the CSS with another,
+                        #      we always start with the first character in the remaining query)
                         # i - Ignore case
                         # s - Whitespace includes new-lines
-                        #     (we allow this in case the CSS given to us is from an unknoen external source)
+                        #     (we allow this in case the CSS given to us is from an unknown external source)
                         # u - Handle Unicode correctly
                         # x - Allow this freeform regex style with whitespace and comments
                         #     (rather than this regex string having to be on a single line)
                         
-                        /isux"
-                      , mb_substr( $query, $offset )
+                        /Aisux"
+                      , substr( $query, $offset )
                       , $match
                 )) {
                         $this->translateFragment( $match, $results );
-                        $offset += mb_strlen( $match[0] );
+                        $offset += strlen( $match[0] );
                 };
                 
                 /* when all parts of the CSS query are valid, all fragments will have been processed in the loop above
@@ -444,10 +494,10 @@ class Translator
         
         /**
          * @internal
-         * 
+         *
          * @param       array   $match          Matches array from the CSS regex
          * @param       array   $results        Array of XPath steps
-         
+         *
          * @todo        fix case sensitivity (e.g. `$pseudo == 'empty'`)
          */
         private function translateFragment(&$match, &$results)
@@ -472,14 +522,14 @@ class Translator
                          * (this is discussed in detail further down)
                          *
                          * Therefore, here is a table of comparisons between CSS & XPath queries
-                         * 
+                         *
                          *      ANY namespace (including none)           e              *[local-name()="e"]
                          *      NO namespace only                       |e              *[name()="e"]
-                         *              
+                         *
                          */
                          
                         /* the namespace can be either "*" (universal), specific (e.g. "xml"),
-                         * or blank -- which would indicate either no namespace, or no CSS Type selector at all. 
+                         * or blank -- which would indicate either no namespace, or no CSS Type selector at all.
                          * we check for the universal namespace selector first as it implies an element
                          * .............................................................................................. */
                         case    $namespace == '*':
@@ -490,7 +540,7 @@ class Translator
                                         $results[] = Array ( $this::STEP_NODE, namespace\XPATH_NODE_ANY );
                                 } else {
                                         //push the XPath: `*[local-name()='e']`
-                                        array_push ( $results, 
+                                        array_push ( $results,
                                                 Array ( $this::STEP_NODE, namespace\XPATH_NODE_ANY )
                                         ,       Array ( $this::STEP_PREDICATE,
                                                         //insert the element name
@@ -533,8 +583,9 @@ class Translator
                         case    !!$combinator:
                                 //match up the CSS combinator with the XPath equivalent
                                 switch (trim( $combinator )) {
+                                        //CSS adjacent sibling selector:
                                         case '+':
-                                                //build `/following-sibling::*[1]/self::`
+                                                //push the XPath: `/following-sibling::*[1]/self::`
                                                 array_push( $results
                                                 ,       Array ( $this::STEP_AXIS, namespace\XPATH_AXIS_FOLLOWING )
                                                 ,       Array ( $this::STEP_NODE, namespace\XPATH_NODE_ANY )
@@ -542,12 +593,14 @@ class Translator
                                                 ,       Array ( $this::STEP_AXIS, namespace\XPATH_AXIS_SELF )
                                                 );
                                                 break;
+                                        //CSS child selector:
                                         case '>':
                                                 $results[] = Array (
                                                         $this::STEP_AXIS
                                                 ,       namespace\XPATH_AXIS_CHILD
                                                 );
                                                 break;
+                                        //CSS general sibling selector:
                                         case '~':
                                                 $results[] = Array (
                                                         $this::STEP_AXIS
@@ -605,7 +658,7 @@ class Translator
                                 $results[] = Array (
                                         $this::STEP_PREDICATE
                                 ,       sprintf(
-                                                $this->attrs[$comparator]
+                                                self::$attrs[$comparator]
                                         ,       $attr
                                                 //the comparison value provided by the user could be within single,
                                                 //double, or no quotes, and could likewise contain single or double
@@ -616,7 +669,7 @@ class Translator
                                 );
                                 break;
                         
-                        /* 
+                        /* nth-child selector
                          * .............................................................................................. */
                         case    $nthof == 'nth-child':
                                 
@@ -646,14 +699,14 @@ class Translator
                                 }
                                 break;
                         
-                        /* 
+                        /*
                          * .............................................................................................. */
                         case    $nthof == 'nth-last-child':
                                 /** @todo Implement `::nth-last-child` */
                                 throw new UnimplementedCSSException();
                                 break;
                         
-                        /* 
+                        /*
                          * .............................................................................................. */
                         case    $nthof == 'nth-of-type':
                                 /** @todo Implement `::nth-of-type` */
