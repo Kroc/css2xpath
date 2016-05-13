@@ -17,18 +17,16 @@ error_reporting( E_ALL | E_STRICT );
 require_once 'css2xpathPHPUnit.php';
 
 /**
+ * Rather than just compare CSS > XPath strings, which relies on us formulating the XPath equivalents manually
+ * (prone to fault), we apply the XPath string we generate to a test document and check the nodes returned.
+ * This way, we only need to confirm that our CSS tests match the expeted elements in the test document
+ * (easily and visually done), with which the XPath can be automatically confirmed against
+ *
  * @coversDefaultClass \kroc\css2xpath
  */
 class TranslateQueryTest
         extends CSS2XPath_TestCase //PHPUnit_Framework_TestCase
 {
-        /**
-         * Rather than just compare CSS > XPath strings, which relies on us formulating the XPath equivalents manually
-         * (prone to fault), we apply the XPath string we generate to a test document and check the nodes returned.
-         * This way, we only need to confirm that our CSS tests match the expeted elements in the test document
-         * (easily and visually done), with which the XPath can be automatically confirmed against
-         */
-        
         /**
          * @test
          * @covers translateQuery
@@ -54,7 +52,10 @@ class TranslateQueryTest
                 ,       '<e : 1st-level <f : 2nd-level <g : 3rd-level >><f : 2nd-level >>'
                 ,       '<f : 2nd-level <g : 3rd-level >><f : 2nd-level >'
                 );
-/*                $this->assertTrue( $this->XMLTest(
+                
+/*              we won't deal with namespace stuff yet
+                
+                $this->assertTrue( $this->XMLTest(
                         '*|e'
                 ,       '<e>e0</e><ns1:e xmlns:ns1="urn:ns1">e1</ns1:e><ns2:e xmlns:ns2="urn:ns2">e2</ns2:e>'
                 ,       '<e>e0</e>, <ns1:e xmlns:ns1="urn:ns1">e1</ns1:e>, <ns2:e xmlns:ns2="urn:ns2">e2</ns2:e>'
@@ -82,23 +83,24 @@ class TranslateQueryTest
                 ,  static::$TranslatorDefault->translateQuery( '|e' )
                 ,  'CSS Namespaceless Type selector'
                 );
-                $this->assertEquals(
-                   '?'
-                ,  static::$TranslatorDefault->translateQuery( 'a, b' )
-                ,  'CSS Selector Groups'
-                );
 */
+                //CSS Selector Groups
+                $this->assertCSS2XPathSerializedXMLEquals(
+                        'a, c'
+                ,       '<a : left-hand ><b : middle-man ><c : right-hand >'
+                ,       '<a : left-hand ><c : right-hand >'
+                );
                 
                 /* CSS Attribute Selectors:
                  * ------------------------------------------------------------------------------------------------------ */
-                
-/*
-                $this->assertEquals(
-                   '?'
-                ,  static::$TranslatorDefault->translateQuery( 'e[attr]' )
-                ,  'CSS Attribute selector'
+                //CSS Attribute selector
+                $this->assertCSS2XPathSerializedXMLEquals(
+                        'e[attr]'
+                ,       '<e @attr><e : <e @attr value >>'
+                ,       '<e @attr>'
                 );
-                $this->assertEquals(
+                
+/*              $this->assertEquals(
                    '?'
                 ,  static::$TranslatorDefault->translateQuery( 'e[|attr]' )
                 ,  'CSS Namespaceless Attribute selector'

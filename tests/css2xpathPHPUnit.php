@@ -62,7 +62,8 @@ abstract class SerializedXMLAssert
                 self::assertEquals(
                         $expected_sxml
                 ,       $result_sxml
-                ,       'Failed to assert that the CSS to XPath translation produced the expected behaviour'
+                ,       "Failed to assert that the CSS to XPath translation produced the expected behaviour\n"
+                        . "xpath : $xpath"
                 );
         }
 }

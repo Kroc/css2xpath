@@ -94,7 +94,7 @@ class DOMDocumentSerialize
                         #       capture a text node:
                         (?:
                                 (?P<text>
-                                        [^<]+
+                                        [^<>]+
                                 )
                                 
                         #       or capture an element:
@@ -110,56 +110,70 @@ class DOMDocumentSerialize
                                                 (?P>__IDENT)
                                         )
                                         
-                                        # attributes & namespace defintions (optional)
-                                        (?P<attrs>(?:
-                                                \s+
-                                                [@!] (?:(?P>__IDENT):)? (?P>__IDENT)
-                                                (?:
-                                                        .(?!= @[a-z] | ;> | :\s )
-                                                )*
-                                        )+)?
-                                        
-                                        # element content
-                                        (?:
-                                                # element content begins with a colon
-                                                \s+ : \s+
-                                                
-                                                # content is anything other than `;>`
-                                                (?P<content>
-                                                        (?:
-                                                        #       handle nested elements
-                                                                (?P>element)
-                                                        #       allow any other non-closing-element character
-                                                        |       [^>]
-                                                        )+
-                                                )
+                                        # attributes & namespace definitions (optional)
+                                        (?P<attrs>
+                                                # the forward-only group here `(?>` reduces the amount of back-tracking;
+                                                # if there's multiple attributes we can only capture them as a whole,
+                                                # so we're only concerned with moving over the whole group quickly
+                                                (?>     \s+
+                                                        [@!]                            # attribute or namespace sigil
+                                                        (?: (?P>__IDENT) : )?           # attribute namespace
+                                                        (?P>__IDENT)                    # attribute name
+                                                        (?:                             # optional attribute value
+                                                                \s+                     # whitespace before value
+                                                                # TODO: allow quoted attributes
+                                                                [^\s]+                  # attribute value
+                                                        )?
+                                                )+
                                         )?
                                         
-                                        >
+                                        # optimisation hint: two variable-sized optional groups, one after the other, will
+                                        # create a *lot* of back-tracking, slowing down the regex. if we bring the ending
+                                        # forward, as an option, we can get the regex to finish earlier and quicker
+                                        (?:
+                                        #       if there's no element content, then we can match the end here
+                                                \s*>
+                                        
+                                        |       # element content begins with a colon
+                                                \s+ : \s+
+                                                
+                                                # content is anything other than `>`
+                                                (?P<content>
+                                                        (?>
+                                                        #       allow any other non-closing-element character
+                                                                [^<>]
+                                                        #       handle nested elements
+                                                        |       (?P>element)
+                                                        )+
+                                                )
+                                                >
+                                        )
                                 )
                         )
                         /Aisux"
-                ,       $serialized_text, $matches, 0, $offset
+                ,       $serialized_text, $match, 0, $offset
                 )) {
+                        print_r( $match );
+                        
                         //did we match a text node, or an element?
-                        if (!empty( $matches['text'] )) {
+                        if (!empty( $match['text'] )) {
                                 //append the text node
                                 $context_node->appendChild(
-                                        $context_node->ownerDocument->createTextNode( trim( $matches['text'] ))
+                                        $context_node->ownerDocument->createTextNode( trim( $match['text'] ))
                                 );
                                 
                         } else {
                                 //create the new element
                                 //@todo Handle element namespace (default?)
-                                $new_element = $context_node->ownerDocument->createElement( $matches['tag'] );
+                                $new_element = $context_node->ownerDocument->createElement( $match['tag'] );
                                 
                                 //@todo extract the attributes / namespaces
                                 
                                 //if the element has some inner content, process this recursively
-                                if (!!$matches['content']) {
+                                if (!empty( $match['content'] ))
                                         //(recurse this function without having to use its name directly)
-                                        self::{__FUNCTION__}( $new_element, $matches['content'] );
-                                }
+                                        self::{__FUNCTION__}( $new_element, $match['content'] )
+                                ;
                                 
                                 //attach the element to its parent
                                 $context_node->appendChild( $new_element );
@@ -168,7 +182,7 @@ class DOMDocumentSerialize
                         //continue processing the serialized text:
                         //note that `preg_match`es offset is in bytes, not Unicode characters,
                         //so we don't use `mb_strlen` here
-                        $offset += strlen( $matches[0] );
+                        $offset += strlen( $match[0] );
                 }
                 
                 if ($offset < mb_strlen( $serialized_text )) throw new InvalidArgumentException(

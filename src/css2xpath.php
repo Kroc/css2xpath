@@ -117,51 +117,6 @@ const XPATH_NTH_ODD             = '[(count( ./preceding-sibling::* ) + 1) mod 2 
 /** XPath equivalent to the separation of queries by a comma in CSS */
 const XPATH_UNION               = ' | ';
 
-/** @todo: allowing/disallowing CSS features? */
-const ALLOW_CSS_DEPRICATED      = 2 ^ 0;
-/** Enables CSS Namespaces in all accepted places, including CSS2+ Attribute selectors, e.g. `e[ns|attr]` */
-const ALLOW_CSS_NAMESPACES      = 2 ^ 1;
-/** CSS1; Element Type selector, i.e. `e` */
-const ALLOW_CSS_TYPE            = 2 ^ 2;
-/** CSS1; Class selector, i.e. `.class` */
-const ALLOW_CSS_CLASS           = 2 ^ 3;
-/** CSS1; ID selector, i.e. `#id` */
-const ALLOW_CSS_ID              = 2 ^ 4;
-/** CSS1; Descendant Combinator -- whitespace between elements, e.g. `a b` */
-const ALLOW_CSS_DESCENDANT      = 2 ^ 5;
-/** CSS2; Universal Type selector, i.e. `*` */
-const ALLOW_CSS_UNIVERSAL       = 2 ^ 6;
-const ALLOW_CSS_CHILD           = 2 ^ 7;
-const ALLOW_CSS_ADJACENT        = 2 ^ 8;
-/** CSS2; Attribute selector */
-const ALLOW_CSS_ATTR            = 2 ^ 9;
-const ALLOW_CSS_ATTR_EQUAL      = 2 ^ 10;
-const ALLOW_CSS_ATTR_SPACE      = 2 ^ 11;
-const ALLOW_CSS_ATTR_DASH       = 2 ^ 12;
-/** CSS3; Sibling Combinator '+' */
-const ALLOW_CSS_SIBLING         = 2 ^ 13;
-const ALLOW_CSS_ATTR_BEGIN      = 2 ^ 14;
-const ALLOW_CSS_ATTR_END        = 2 ^ 15;
-const ALLOW_CSS_ATTR_CONTAINS   = 2 ^ 16;
-const ALLOW_CSS_NOT             = 2 ^ 17;
-/** CSS4; Matches Pseudo-Class */
-const ALLOW_CSS_MATCHES         = 2 ^ 18;
-
-const ALLOW_CSS_COMBINATORS     = ALLOW_CSS_DESCENDANT || ALLOW_CSS_CHILD || ALLOW_CSS_ADJACENT || ALLOW_CSS_SIBLING;
-
-/** Enables CSS Level 1 selectors */
-const ALLOW_CSS_LEVEL1          = ALLOW_CSS_TYPE || ALLOW_CSS_CLASS || ALLOW_CSS_ID
-                               || ALLOW_CSS_DESCENDANT;
-/** Enables CSS Level 2 (and below) selectors */
-const ALLOW_CSS_LEVEL2          = ALLOW_CSS_LEVEL1
-                               || ALLOW_CSS_UNIVERSAL
-                               || ALLOW_CSS_ATTR || ALLOW_CSS_ATTR_EQUAL || ALLOW_CSS_SPACE || ALLOW_CSS_DASH;
-/** Enables CSS Level 3 (and below) selectors */
-const ALLOW_CSS_LEVEL3          = ALLOW_CSS_LEVEL2;
-/** Enables CSS Level 4 (and below) selectors */
-const ALLOW_CSS_LEVEL4          = ALLOW_CSS_LEVEL3;
-
-
 
 /**
  * The brains of the operation. It will encapsulate the settings you choose for CSS to XPath translation.
@@ -258,10 +213,14 @@ class Translator
          */
         public function translateQuery ($query)
         {
-                //leading & trailing whitespace is stripped so as not to be confused for a CSS 'descendant combinator'
-                $query = trim( $query );
-                
                 //@todo: return what for an empty query?
+                if (empty(
+                        //leading & trailing whitespace is stripped so as not to be
+                        //confused for a CSS 'descendant combinator', i.e. 'a b'
+                        $query = trim( $query )
+                )) {
+                        return NULL;
+                }
                 
                 //return from cache if possible:
                 if (in_array( $query, $this->cache )) return $this->cache[$query];
@@ -328,8 +287,8 @@ class Translator
                                 
                         # 3.    ELEMENT:
                         #       --------------------------------------------------------------------------------------------
-                        #       An optional namespace identifier can prefix an element name. For CSS, this can also be
-                        #       a universal namespace identifier '*'
+                        #       An optional namespace identifier can prefix an element name.
+                        #       For CSS, this can also be a universal namespace identifier '*'
                                 
                         |       (?:
                                         (?P<namespace>
@@ -503,11 +462,14 @@ class Translator
                       , $match
                 )) {
                         /** @todo nth-child(even) needs the previous Part to go at the end! */
-                        $return += $this->translateFragment(
-                                $match['comma'], $match['combinator'], $match['namespace'], $match['element'],
-                                $match['id'], $match['class'], $match['pseudo'], $match['nthof'], $match['nth'],
-                                $match['a'], $match['n'], $match['not'], $match['lang'], $match['attr'],
-                                $match['comparator'], $match['quote'], $match['value']
+                        $return = array_merge(
+                                $return,
+                                $this->translateFragment(
+                                        $match['comma'], $match['combinator'], $match['namespace'], $match['element'],
+                                        $match['id'], $match['class'], $match['pseudo'], $match['nthof'], $match['nth'],
+                                        $match['a'], $match['n'], $match['not'], $match['lang'], $match['attr'],
+                                        $match['comparator'], $match['quote'], $match['value']
+                                )
                         );
                         $offset += strlen( $match[0] );
                 };
@@ -531,6 +493,9 @@ class Translator
          *
          * @param       string  $comma          Set to "," to indicate a CSS selector separator
          * @param       string  $combinator     A CSS combinator (" ", "+", ">", "~")
+         * @param       string  $namespace      Empty, "*" or a namespace name. implies `$element` present
+         * @param       string  $id             A CSS ID (sans the "#")
+         * @param       string  $class          A CSS class name (sans the ".")
          *
          * @todo        fix case sensitivity (e.g. `$pseudo == 'empty'`)
          */
@@ -561,7 +526,7 @@ class Translator
                          
                         /* the namespace can be either "*" (universal), specific (e.g. "xml"),
                          * or blank -- which would indicate either no namespace, or no CSS Type selector at all.
-                         * we check for the universal namespace selector first as it implies an element
+                         * we check for the universal namespace selector first as it implies a following element
                          * .............................................................................................. */
                         case    $namespace == '*':
                                 //if the Type element is also universal (i.e. `*|*`) ...
