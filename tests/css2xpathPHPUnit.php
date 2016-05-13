@@ -89,7 +89,6 @@ abstract class CSS2XPath_TestCase
          * @param       string  $test_sxml      A test XML document, in serialized form
          * @param       string  $expected_sxml  Serialized representation of the [expected] result of the XPath query
          */
-         */
         public function assertCSS2XPathSerializedXMLEquals ($css, $test_sxml, $expected_sxml)
         {
                 //we pass this up as the `PHPUnit_Framework_Assert` class has the funcationality we need

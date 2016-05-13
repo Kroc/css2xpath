@@ -165,7 +165,7 @@ const ALLOW_CSS_LEVEL4          = ALLOW_CSS_LEVEL3;
 
 /**
  * The brains of the operation. It will encapsulate the settings you choose for CSS to XPath translation.
- * You cannot change the settings after class insantiation because:
+ * You cannot change the settings after class instantiation because:
  *
  * 1.   This would invalidate the internal cache
  * 2.   You will shoot yourself in the foot if you re-use the object elsewhere
@@ -177,16 +177,16 @@ const ALLOW_CSS_LEVEL4          = ALLOW_CSS_LEVEL3;
  */
 class Translator
 {
-        /* An XPath query consists of one or more 'Steps', with each Step being made up of 3 parts,
-           which *must* be, in order: 1. An 'Axis', 2. A 'Node Test' and 3. Zero or more 'Predicates'.
-           
-           The Axis decides which set of Nodes to select --
-           - The current Node `self::`, abbreviated as `.`
-           - Children of the current Node, `child::` (though this is implied and can be omitted)
-           - Descendants (`descendant::`), but most typically `descendant-or-self::` -- abbreviated as `//`
-           - The Nodes before or after the current node, `following-sibling::` & `preceding-sibling::`
-           - Attributes of the current Node, `attribute::`, abbreviated `@`
-        */
+        /* An XPath query consists of one or more 'Steps', with each Step being made up of 3 Parts,
+         * which *must* be, in order: 1. An 'Axis', 2. A 'Node Test' and 3. Zero or more 'Predicates'.
+         *
+         * The Axis decides which set of Nodes to select --
+         * - The current Node `self::`, abbreviated as `.`
+         * - Children of the current Node, `child::` (though this is implied and can be omitted)
+         * - Descendants (`descendant::`), but most typically `descendant-or-self::` -- abbreviated as `//`
+         * - The Nodes before or after the current node, `following-sibling::` & `preceding-sibling::`
+         * - Attributes of the current Node, `attribute::`, abbreviated `@`
+         */
         /** @internal */
         const STEP_UNION        = 0;    //I.e. `|`
         /** @internal */
@@ -211,8 +211,8 @@ class Translator
         ,       '*='    => namespace\XPATH_ATTR_MATCH
         );
         
-        /** the default Axis determines the initial search behaviour of an XPath query;
-          * CSS includes the context node in its search -- i.e. in document beginning with `<html>`,
+        /** @internal The default Axis determines the initial search behaviour of an XPath query;
+          * CSS includes the context node in its search -- i.e. in a document beginning with `<html>`,
           * the CSS selector `html` will select the root element, rather than searching only its children
           * -- this corresponds to XPath's `descendant-or-self` Axis */
         private $default_axis;
@@ -266,7 +266,35 @@ class Translator
                 //return from cache if possible:
                 if (in_array( $query, $this->cache )) return $this->cache[$query];
                 
-                $results[] = Array ( $this::STEP_AXIS, $this->default_axis );
+                //begin with the default Axis, then translate the CSS query into XPath Parts
+                $results = Array_merge(
+                        Array (Array ( $this::STEP_AXIS, $this->default_axis ))
+                ,       $this->translate( $query )
+                );
+                
+                //convert our chain of XPath Parts into an XPath string
+                return array_reduce( $results, function($xpath, $step){
+                        static $last_step;
+                        
+                        $last_step = $step;
+                        
+                        /** @todo Fill in missing steps */
+                        return $xpath .= $step[1];
+                } );
+        }
+        
+        /**
+         * Split off the fragments of CSS from a query and convert them into XPath Parts
+         *
+         * @param       string  $css
+         * @return      array
+         *
+         * @throws      InvalidCSSException
+         */
+        private function translate (
+                $css
+        ) {
+                $return = Array();
                 
                 $offset = 0;
                 while (preg_match( "/
@@ -279,7 +307,7 @@ class Translator
                         
                         # 1.    COMMA:
                         #       --------------------------------------------------------------------------------------------
-                        #       A comma separates multiple CSS queries. whitespace is ignored before &
+                        #       A comma separates multiple CSS selectors. whitespace is ignored before &
                         #       after to not mistake this for CSS descendants, i.e. `a b`
                         
                                 \s*
@@ -471,10 +499,16 @@ class Translator
                         #     (rather than this regex string having to be on a single line)
                         
                         /Aisux"
-                      , substr( $query, $offset )
+                      , substr( $css, $offset )
                       , $match
                 )) {
-                        $this->translateFragment( $match, $results );
+                        /** @todo nth-child(even) needs the previous Part to go at the end! */
+                        $return += $this->translateFragment(
+                                $match['comma'], $match['combinator'], $match['namespace'], $match['element'],
+                                $match['id'], $match['class'], $match['pseudo'], $match['nthof'], $match['nth'],
+                                $match['a'], $match['n'], $match['not'], $match['lang'], $match['attr'],
+                                $match['comparator'], $match['quote'], $match['value']
+                        );
                         $offset += strlen( $match[0] );
                 };
                 
@@ -482,32 +516,29 @@ class Translator
                  * and the `$offset` index will be at the end of the CSS query. If the regex does not match a fragment,
                  * (i.e. invalid CSS), then the offset index will not have progressed to the end of the string and we
                  * know that some invalid CSS was encountered */
-                if ($offset < mb_strlen( $query )) throw new InvalidCSSException(
+                if ($offset < strlen( $css )) throw new InvalidCSSException(
                         'Invalid CSS fragment within CSS query.'
                 );
                 
-                /** @todo Fill in missing steps */
-                $result = '';
-                foreach ($results as $xpath) $result .= $xpath[1];
-                return  $result;
+                return $return;
         }
         
         /**
          * @internal
          *
-         * @param       array   $match          Matches array from the CSS regex
-         * @param       array   $results        Array of XPath steps
+         * NOTE: These parameters are not all required, as they match up to the regex used and certain combinations
+         *       of parameters will produce different results
+         *
+         * @param       string  $comma          Set to "," to indicate a CSS selector separator
+         * @param       string  $combinator     A CSS combinator (" ", "+", ">", "~")
          *
          * @todo        fix case sensitivity (e.g. `$pseudo == 'empty'`)
          */
-        private function translateFragment(&$match, &$results)
-        {
-                //convert the `$match` array into varibles named after the regex named groups:
-                $comma = ''; $combinator = ''; $namespace = ''; $element = ''; $id = ''; $class = ''; $pseudo = '';
-                $nthof = ''; $nth = ''; $a = ''; $n = ''; $not = ''; $lang = ''; $attr = ''; $comparator = '';
-                $quote = ''; $value = '';
-                extract ( $match, EXTR_OVERWRITE );
-                
+        private function translateFragment (
+                &$comma = '', &$combinator = '', &$namespace = '', &$element = '', &$id = '', &$class = '', &$pseudo = '',
+                &$nthof = '', &$nth = '', &$a = '', &$n = '', &$not = '', &$lang = '', &$attr = '', &$comparator = '',
+                &$quote = '', &$value = ''
+        ) {
                 switch (true) {
                         /* element (and namespace)
                          * .............................................................................................. */
@@ -537,12 +568,13 @@ class Translator
                                 if ($element == '*') {
                                         //Xpath has no universal namespace selector,
                                         //it's implied by the normal universal selector
-                                        $results[] = Array ( $this::STEP_NODE, namespace\XPATH_NODE_ANY );
+                                        return Array (Array ($this::STEP_NODE, namespace\XPATH_NODE_ANY));
                                 } else {
                                         //push the XPath: `*[local-name()='e']`
-                                        array_push ( $results,
-                                                Array ( $this::STEP_NODE, namespace\XPATH_NODE_ANY )
-                                        ,       Array ( $this::STEP_PREDICATE,
+                                        return Array (
+                                                Array ($this::STEP_NODE, namespace\XPATH_NODE_ANY)
+                                        ,       Array (
+                                                        $this::STEP_PREDICATE,
                                                         //insert the element name
                                                         sprintf( namespace\XPATH_NODE_ANYNS, $element )
                                                 )
@@ -556,11 +588,11 @@ class Translator
                         // NB: the `!!` would fail if `$namespace` were "0"; but this is precluded by the regex
                         case    !!$namespace:
                                 //push the XPath: `ns:e` (or `ns:*`)
-                                $results[] = Array (
+                                return Array (Array(
                                         $this::STEP_NODE
                                         //we rely on the CSS and XPath universal selector being the same here
                                 ,       $namespace . namespace\XPATH_NAMESPACE . $element
-                                );
+                                ));
                                 break;
                                 
                         /* element, with no namespace given
@@ -568,14 +600,18 @@ class Translator
                         // NB: the `!!` would fail if `$element` were "0"; but this is precluded by the regex
                         case    !!$element:
                                 //this is straight-forward...
-                                $results[] = Array ( $this::STEP_NODE, $element );
+                                return Array (
+                                        Array ($this::STEP_NODE, $element )
+                                );
                                 break;
 
                         /* multiple CSS queries are separated by commas
                          * .............................................................................................. */
                         case    !!$comma:
                                 //the XPath equivalent is the bar
-                                $results[] = Array ( $this::STEP_UNION, namespace\XPATH_UNION );
+                                return Array (
+                                        Array ( $this::STEP_UNION, namespace\XPATH_UNION )
+                                );
                                 break;
                         
                         /* combinator between sequences, e.g. `a + b`, `a > b`, 'a ~ b' and also 'a b' (space)
@@ -586,8 +622,8 @@ class Translator
                                         //CSS adjacent sibling selector:
                                         case '+':
                                                 //push the XPath: `/following-sibling::*[1]/self::`
-                                                array_push( $results
-                                                ,       Array ( $this::STEP_AXIS, namespace\XPATH_AXIS_FOLLOWING )
+                                                return Array (
+                                                        Array ( $this::STEP_AXIS, namespace\XPATH_AXIS_FOLLOWING )
                                                 ,       Array ( $this::STEP_NODE, namespace\XPATH_NODE_ANY )
                                                 ,       Array ( $this::STEP_PREDICATE, namespace\XPATH_FIRST )
                                                 ,       Array ( $this::STEP_AXIS, namespace\XPATH_AXIS_SELF )
@@ -595,23 +631,20 @@ class Translator
                                                 break;
                                         //CSS child selector:
                                         case '>':
-                                                $results[] = Array (
-                                                        $this::STEP_AXIS
-                                                ,       namespace\XPATH_AXIS_CHILD
+                                                return Array (
+                                                        Array ($this::STEP_AXIS, namespace\XPATH_AXIS_CHILD)
                                                 );
                                                 break;
                                         //CSS general sibling selector:
                                         case '~':
-                                                $results[] = Array (
-                                                        $this::STEP_AXIS
-                                                ,       namespace\XPATH_AXIS_SIBLING
+                                                return Array (
+                                                        Array ($this::STEP_AXIS, namespace\XPATH_AXIS_SIBLING)
                                                 );
                                                 break;
                                         default:
                                                 //just whitespace? (or `>>`) use the XPath descendant combinator
-                                                $results[] = Array (
-                                                        $this::STEP_AXIS
-                                                ,       namespace\XPATH_AXIS_DESCENDANT
+                                                return Array (
+                                                        Array ($this::STEP_AXIS, namespace\XPATH_AXIS_DESCENDANT)
                                                 );
                                 }
                                 break;
@@ -621,11 +654,11 @@ class Translator
                         // NB: the `!!` would fail if `$id` were "0"; but this is precluded by the regex
                         case    !!$id:
                                 //add the XPath fragment to select an ID
-                                $results[] = Array (
+                                return Array (Array (
                                         $this::STEP_PREDICATE
                                         //apply the captured ID to the XPath template
                                 ,       sprintf( namespace\XPATH_ID, $id )
-                                );
+                                ));
                                 break;
                         
                         /* class selector
@@ -633,11 +666,11 @@ class Translator
                         // NB: the `!!` would fail if `$class` were "0"; but this is precluded by the regex
                         case    !!$class:
                                 //add the XPath fragment to select an element based on CSS class
-                                $results[] = Array (
+                                return Array (Array (
                                         $this::STEP_PREDICATE
                                         //apply the captured class name to the XPath template
                                 ,       sprintf( namespace\XPATH_CLASS, $class )
-                                );
+                                ));
                                 break;
                                 
                         /* attribute selector
@@ -648,14 +681,14 @@ class Translator
                                 //(with a condition). if there's no condition, we can move ahead quickly
                                 if (!$comparator) {
                                         //produce the simple XPath attribute test
-                                        $results[] = Array (
+                                        return Array( Array (
                                                 $this::STEP_PREDICATE
                                         ,       sprintf( namespace\XPATH_ATTR, $attr )
-                                        );
+                                        ));
                                         break;
                                 }
                                 //get the relevant template and insert the attribute and comparison value:
-                                $results[] = Array (
+                                return Array (Array (
                                         $this::STEP_PREDICATE
                                 ,       sprintf(
                                                 self::$attrs[$comparator]
@@ -666,7 +699,7 @@ class Translator
                                                 //convert any internal quotes into safe XML entities
                                         ,       htmlspecialchars( $value, ENT_QUOTES, 'UTF-8' )
                                         )
-                                );
+                                ));
                                 break;
                         
                         /* nth-child selector
@@ -677,19 +710,21 @@ class Translator
                                         //`::nth-child(n)` simply selects all child elements anyway
                                         case    'n':
                                                 //$results[] = Array ( $this::STEP_AXIS, namespace\XPATH_CHILD );
+                                                return Array ();
                                                 break;
                                         
                                         case    'odd':
-                                                $results[] = Array ( $this::STEP_PREDICATE, namespace\XPATH_NTH_ODD );
+                                                Return Array (
+                                                        Array ( $this::STEP_PREDICATE, namespace\XPATH_NTH_ODD )
+                                                );
                                                 break;
                                         
                                         case    'even':
-                                                $temp = array_pop( $results );
-                                                array_push ( $results
-                                                ,       Array ( $this::STEP_NODE, namespace\XPATH_NODE_ANY )
+                                                /** @todo the previous Part needs to be moved to the end! */
+                                                return Array (
+                                                        Array ( $this::STEP_NODE, namespace\XPATH_NODE_ANY )
                                                 ,       Array ( $this::STEP_PREDICATE, namespace\XPATH_NTH_EVEN )
                                                 ,       Array ( $this::STEP_AXIS, namespace\XPATH_AXIS_SELF )
-                                                ,       $temp
                                                 );
                                                 break;
                                         
@@ -724,20 +759,25 @@ class Translator
                          * .............................................................................................. */
                         case    $pseudo == 'first-child':
                                 //add the XPath fragment for selecting the first node
-                                $results[] = Array ( $this::STEP_PREDICATE, namespace\XPATH_FIRST );
+                                return Array (
+                                        Array ( $this::STEP_PREDICATE, namespace\XPATH_FIRST )
+                                );
                                 break;
                                 
                         /* empty pseudo element
                          * .............................................................................................. */
                         case    $pseudo == 'empty':
-                                $results[] = Array ( $this::STEP_PREDICATE, namespace\XPATH_EMPTY );
+                                return Array (
+                                        Array ( $this::STEP_PREDICATE, namespace\XPATH_EMPTY )
+                                );
                                 break;
                                 
                         //..................................................................................................
                         default:
-                                print_r($match);
                                 throw new UnimplementedCSSException();
                 }
+                
+                return $results;
         }
 }
 
