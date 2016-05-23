@@ -19,8 +19,7 @@
                         }
         
 ,       "require"       : {
-                                "ext-mbstring"  : "*"
-                        ,       "ext-pcre"      : "*"
+                                "ext-pcre"      : "*"
                         }
                         
 ,       "autoload"      : {
@@ -31,6 +30,5 @@
                         
 ,       "require-dev"   : {
                                 "phpunit/phpunit"               : "5.0.*"
-                        ,       "phpdocumentor/phpdocumentor"   : "2.*"
                         }
 }

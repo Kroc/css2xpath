@@ -30,7 +30,7 @@ abstract class SerializedXMLAssert
         {
                 //create a css2xpath translator
                 static::$Translator = new css2xpath\Translator(
-                        css2xpath\XPATH_AXIS_DESCENDANT
+                        css2xpath\Translator::XPATH_AXIS_DESCENDANT
                 );
         }
         

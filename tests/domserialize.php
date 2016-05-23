@@ -35,11 +35,46 @@
  */
 
 /**
- * The extended `DOMDocument` (XML document class) with our added [de]serialization capabilities
+ * The extended `DOMDocument` (XML document class) with our added [de]serialization capabilities.
+ * It is a PHP requirement that nodes being attached to a document must come from the same document
+ * (i.e. the nodes must be created using the original document, and then attached);
+ * this is why a subclass of DOMDocument is provided to work through.
  */
 class DOMDocumentSerialize
         extends DOMDocument
 {
+        //to do XPath queries, we'll need a DOMXPath object
+        //which has to be bound to the particular Document instance
+        /** @var DOMXpath */
+        public $xquery;
+        
+        /**
+         * @param       string  $version        XML prolog version, best left as default
+         * @param       string  $encoding       XML prolog character encoding, defaulting to UTF-8
+         */
+        public function __construct ($version = '1.0', $encoding = 'UTF-8')
+        {
+                //construct the DOMDocument according to normal behaviour
+                parent::__construct( $version, $encoding );
+                
+                //now register our class extensions for the various node types
+                //(it's theoretically possible for this to fail, so we check for that)
+                if (
+                        ($this->registerNodeClass( 'DOMElement', 'DOMElementSerialize' ) === false)
+                     || ($this->registerNodeClass( 'DOMAttr',    'DOMAttrSerialize'    ) === false)
+                     || ($this->registerNodeClass( 'DOMText',    'DOMTextSerialize'    ) === false)
+                
+                //if that failed, there's really nothing we can do
+                //-- trigger a fatal error and return false
+                ) return !trigger_error (
+                        'DOMDocumentSerialize could not register its necessary Node classes.'
+                ,       E_USER_ERROR
+                );
+                
+                //create the DOMXPath object to be able to do XPath queries
+                $this->xquery = new DOMXpath( $this );
+        }
+        
         /**
          * Creates a new document by deserializing a string into XML
          *
@@ -49,44 +84,147 @@ class DOMDocumentSerialize
          *      $document = DOMDocumentSerialize::deserialize( '<a @href # : Click Here >' );
          *
          * @param       string  $serialized_text        A string containing previously serialized XML
+         * @param       string  $root_node              A DOMDocument may have only one root element, but the serialized
+         *                                              XML form allows multiple elements side-by-side. In the instance of
+         *                                              deserializing into a new document, a custom root node *must* be
+         *                                              created. You can provide the name of this root element, otherwise
+         *                                              it will be `<DOMDocumentSerialize />`
+         *
          * @return      DOMDocumentSerialize            An instance of this class containing an XML document tree
+         * @throws      \InvalidArgumentException
          */
-        public static function deserialize ($serialized_text)
+        public static function deserialize ($serialized_text, $root_node = 'DOMDocumentSerialize')
         {
+                //basic validation. an empty `$serialized_text` is valid,
+                # and an empty (though with root node) document will be returned
+                if (!is_string( $serialized_text )) throw new \InvalidArgumentException (
+                        '`$serialized_text` parameter must be a string'
+                );
+                if (!is_string( $root_node ) || trim( $root_node ) === '') throw new \InvalidArgumentException (
+                        '`$root_node` parameter must be a non-empty string'
+                );
+                
                 //create a new, empty document to begin with
-                $DOMDocument = new DOMDocumentSerialize();
+                $document = new DOMDocumentSerialize();
                 
                 //XML documents *must* have only one root element, i.e. `<a>1</a><b>2</b>` would be invalid.
                 //we provide our own so that [de]serialized strings do not have to worry about this
-                $context_node = $DOMDocument->appendChild(
-                        //creates `<DOMDocumentSerialize></DOMDocumentSerialize>`
-                        $DOMDocument->createElement( 'DOMDocumentSerialize' )
+                $context_node = $document->appendChild(
+                        $document->createElement( trim( $root_node ))
                 );
                 
                 //any empty string *is* valid input; you might be feeding in strings from external content that you don't
-                //control. The result will be an effectively empty document (bar the `<DOMDocumentSerialize>` root element)
-                if (empty( $serialized_text = trim( $serialized_text ))) return $DOMDocument;
+                //control. The result will be an effectively empty document (bar the root element)
+                if (empty( $serialized_text = trim( $serialized_text ))) return $document;
                 
                 //begin our recursive descent into the source string
-                self::deserializeText( $DOMDocument->documentElement, $serialized_text );
+                $context_node->deserialize( $serialized_text );
                 
-                return $DOMDocument;
+                return $document;
         }
         
         /**
-         * @param       DOMDocumentNode $context_node
-         * @param       string          $serialized_text
-         * @throws      InvalidArgumentException
+         * @return      string
          */
-        private static function deserializeText ($context_node, $serialized_text)
+        public function serialize ()
+        {
+                return ($this->documentElement->hasChildNodes)
+                        ? self::serializeDOMNodeList( $this->documentElement->childNodes )
+                        : ''
+                ;
+        }
+        
+        /**
+         * @return      string
+         */
+        public static function serializeDOMNodeList ($DOMNodeList)
+        {
+                $serialized_text = '';
+                //@todo this doesn't check for `DOMElementSerialize`
+                foreach ($DOMNodeList as $node)
+                        $serialized_text .= $node->nodeSerialize()
+                ;
+                return $serialized_text;
+        }
+}
+
+class DOMElementSerialize
+        extends DOMElement
+{
+        /**
+         * Convert the current DOMElement and all its children into a serialized XML string
+         *
+         * @return      string
+         */
+        public function nodeSerialize ()
+        {
+                //open the element with the element name
+                /** @todo Element namespace */
+                $nodeSerialize = '<' . $this->nodeName;
+                
+                /* check for namespace definitions on the element...
+                 * ------------------------------------------------------------------------------------------------------ */
+                if (
+                        /* there isn't a DOM API for reading the namespaces defined on an element,
+                         * so we have to query the element with XPath. we exclude XML's default namespace 'xml' */
+                        /** @todo How does a different default namespace affect this? */
+                        ($namespaces = $this->ownerDocument->xquery->query( 'namespace::*[local-name() != "xml"]', $this ))
+                     && ($namespaces->length > 0)
+                     
+                ) foreach ($namespaces as $namespace) {
+                        //namespaces are serialized as "!ns uri"
+                        $nodeSerialize .= ' !' . $namespace->localName . ' ' . $namespace->nodeValue;
+                }
+                
+                /* check for attributes...
+                 * ------------------------------------------------------------------------------------------------------ */
+                /* when an attribute has no value, the closing angle-bracket of the element does not require a space
+                 * beforehand -- e.g. `<input @disabled>`. when an attribute has a value, there has to be a space between
+                 * it and the closing angle-bracket e.g. `<a @href # >` */
+                if ($this->hasAttributes()) for (
+                        /* this requirement means we need to be aware which is the last attribute,
+                         * so we loop using an old-style counter */
+                        $i = 0; $i < $this->attributes->length; $i++
+                ) {
+                        //serializing the attribute node doesn't tell us if it had a value or not...
+                        $nodeSerialize .= ' ' . $this->attributes->item( $i )->nodeSerialize ();
+                        /* here we check for the last attribute and if it has a value and add a final space,
+                         * this isn't necessary if the element has content as that will add a space too */
+                        if (    $i == $this->attributes->length - 1
+                             && !$this->hasChildNodes()
+                             && !empty( $this->attributes->item( $i )->value )
+                        ) $nodeSerialize .= ' ';
+                }
+                
+                /* element content...
+                 * ----------------------------------------------------------------------------------------------------- */
+                if ($this->hasChildNodes()) {
+                        
+                        $nodeSerialize .= ' : ';
+                        
+                        foreach ($this->childNodes as $child) if (!empty(
+                                trim( $text = $child->nodeSerialize() )
+                        )) $nodeSerialize .= "$text";
+                }
+                
+                //close the element
+                return $nodeSerialize . '>';
+        }
+        
+        /**
+         * @param       string  $serialized_xml
+         */
+        public function deserialize ($serialized_xml)
         {
                 $offset = 0;
+                
+        getFragment:
                 /**
                  * For deserialization, this regex looks for an element as a whole. Not everything can be captured and
-                 * separated due to the recursive nature of elements, so this regex aims to capture the outer-most element
-                 * and the PHP code will re-run the regex on the inner elements, and so forth
+                 * separated due to the recursive nature of elements, so this regex aims to capture the outer-most
+                 * element and the PHP code will re-run the regex on the inner elements, and so forth
                  */
-                while (preg_match("/
+                if (preg_match( "/
                         (?(DEFINE)(?'__IDENT'
                                 [a-z][a-z0-9]*
                         ))
@@ -151,132 +289,109 @@ class DOMDocumentSerialize
                                 )
                         )
                         /Aisux"
-                ,       $serialized_text, $match, 0, $offset
+                ,       $serialized_xml, $match, 0, $offset
                 )) {
-                        print_r( $match );
-                        
-                        //did we match a text node, or an element?
                         if (!empty( $match['text'] )) {
-                                //append the text node
-                                $context_node->appendChild(
-                                        $context_node->ownerDocument->createTextNode( trim( $match['text'] ))
+                                $this->appendChild(
+                                        $this->ownerDocument->createTextNode( trim( $match['text'] ))
                                 );
-                                
                         } else {
                                 //create the new element
                                 //@todo Handle element namespace (default?)
-                                $new_element = $context_node->ownerDocument->createElement( $match['tag'] );
+                                $new_element = $this->ownerDocument->createElement( $match['tag'] );
                                 
-                                //@todo extract the attributes / namespaces
+                                //create the attributes / namespaces
+                                if (!empty( $match['attrs'] ))
+                                        $new_element->deserializeAttrs( $match['attrs'] )
+                                ;
                                 
                                 //if the element has some inner content, process this recursively
                                 if (!empty( $match['content'] ))
-                                        //(recurse this function without having to use its name directly)
-                                        self::{__FUNCTION__}( $new_element, $match['content'] )
+                                        $new_element->deserialize ( $match['content'] )
                                 ;
                                 
                                 //attach the element to its parent
-                                $context_node->appendChild( $new_element );
+                                $this->appendChild( $new_element );
                         }
                         
-                        //continue processing the serialized text:
-                        //note that `preg_match`es offset is in bytes, not Unicode characters,
-                        //so we don't use `mb_strlen` here
+                        /* continue processing the serialized text:
+                         * note that `preg_match`s offset is in bytes, not Unicode characters,
+                         * so we don't use `mb_strlen` here */
                         $offset += strlen( $match[0] );
+                } else {
+                        throw new \InvalidArgumentException(
+                                "The string passed does not conform to DOMSerialize's serialized XML form.\n"
+                        );
                 }
                 
-                if ($offset < mb_strlen( $serialized_text )) throw new InvalidArgumentException(
-                        "The string passed does not conform to DOMSerialize's serialized XML form."
-                );
-                
+                if ($offset < strlen( $serialized_xml )) goto getFragment;
         }
         
         /**
-         * @param       string  $version        XML prolog version, best left as default
-         * @param       string  $encoding       XML prolog character encoding, defaulting to UTF-8
+         * Take the attributes and namespaces portion of a serialized-xml string and create the relevent DOMNodes
+         *
+         * @param       string  $serialized_attrs
+         * @throws      \InvalidArgumentException
          */
-        public function __construct ($version = '1.0', $encoding = 'UTF-8')
+        private function deserializeAttrs ($serialized_attrs)
         {
-                //construct the DOMDocument according to normal behaviour
-                parent::__construct( $version, $encoding );
+                $offset = 0;
                 
-                //now register our class extensions for the various node types
-                //(it's theoretically possible for this to fail, so we check for that)
-                if (
-                        ($this->registerNodeClass( 'DOMElement', 'DOMElementSerialize' ) === false)
-                     || ($this->registerNodeClass( 'DOMAttr',    'DOMAttrSerialize' ) === false)
-                     || ($this->registerNodeClass( 'DOMText',    'DOMTextSerialize' ) === false)
-                
-                //if that failed, there's really nothing we can do
-                //-- trigger a fatal error and return false
-                ) return !trigger_error (
-                        'DOMDocumentSerialize could not register its necessary Node classes.'
-                ,       E_USER_ERROR
-                );
-        }
-        
-        public function serialize ()
-        {
-                $serialized_text = '';
-                if ($this->documentElement->hasChildNodes)
-                        $serialized_text = self::serializeDOMNodeList( $this->documentElement->childNodes )
-                ;
-                return $serialized_text;
-        }
-        
-        public static function serializeDOMNodeList ($DOMNodeList)
-        {
-                $serialized_text = '';
-                //@todo this doesn't check for `DOMElementSerialize`
-                foreach ($DOMNodeList as $node)
-                        $serialized_text .= $node->nodeSerialize()
-                ;
-                return $serialized_text;
-        }
-}
- 
-class DOMElementSerialize
-        extends DOMElement
-{
-        public function nodeSerialize ()
-        {
-                $nodeSerialize = '<' . $this->nodeName;
-                
-                $xquery = new DOMXPath( $this->ownerDocument );
-                
-                //check for namespace definitions...
-                if (
-                        ($namespaces = $xquery->query( 'namespace::*[local-name() != "xml"]', $this ))
-                     && ($namespaces->length > 0)
-                     
-                ) foreach ($namespaces as $namespace) {
-                        $nodeSerialize .= ' !' . $namespace->localName . ' ' . $namespace->nodeValue;
-                }
-                
-                unset( $xquery );
-                
-                //check for attributes...
-                if ($this->hasAttributes()) foreach ($this->attributes as $attr) $nodeSerialize .= $attr->nodeSerialize ();
-                
-                if ($this->hasChildNodes()) {
+        getFragment:
+                if (preg_match( "/
+                        \s*
+                        (?:
+                        #       A regular attribute name begins with '@'
+                                @ (?: (?P<attr_ns> [a-z][a-z0-9]*) : )? (?P<attr_name> [a-z][a-z0-9]* )
+                                
+                        #       A namespace declaration begins with '!'
+                        |       ! (?P<namespace> [a-z][a-z0-9]* )
+                        )
+                        (?:
+                                \s+
+                                (?P<value>
+                                        (?:
+                                                \S+
+                                        |       \s+(?!=$)
+                                        )+
+                                )
+                                \s*
+                                $
+                        )?
+                        /Aisux"
+                ,       $serialized_attrs, $match, 0, $offset
+                )) {
+                        $attr = $this->ownerDocument->createAttribute( $match['attr_name'] );
                         
-                        $nodeSerialize .= ' : ';
+                        if (!empty( $match['value'] )) $attr->value = $match['value'];
                         
-                        foreach ($this->childNodes as $child) if (!empty(
-                                trim( $text = $child->nodeSerialize() )
-                        )) $nodeSerialize .= "$text";
-                }
+                        $this->appendChild( $attr );
+                        
+                        /* continue processing the serialized text:
+                         * note that `preg_match`s offset is in bytes, not Unicode characters,
+                         * so we don't use `mb_strlen` here */
+                        $offset += strlen( $match[0] );
+                        
+                } else {
+                        throw new \InvalidArgumentException(
+                                "The string passed does not conform to DOMSerialize's serialized XML form.\n"
+                                . "--> " . $serialized_attrs
+                        );
+                };
                 
-                return $nodeSerialize . '>';
+                if ($offset < strlen( $serialized_attrs )) goto getFragment;
         }
 }
 
 class DOMAttrSerialize
         extends DOMAttr
 {
+        /**
+         * @return      string
+         */
         public function nodeSerialize ()
         {
-                $nodeSerialize = ' @' . $this->nodeName;
+                $nodeSerialize = '@' . $this->nodeName;
                 
                 if (!empty( $text = $this->textContent ))
                         $nodeSerialize .= htmlspecialchars( " $text", ENT_QUOTES, 'UTF-8' )
@@ -289,6 +404,9 @@ class DOMAttrSerialize
 class DOMTextSerialize
         extends DOMText
 {
+        /**
+         * @return      string
+         */
         public function nodeSerialize ()
         {
                 return trim( htmlspecialchars( $this->textContent, ENT_QUOTES, 'UTF-8' )) . ' ';

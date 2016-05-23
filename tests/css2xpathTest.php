@@ -1,5 +1,7 @@
 <?php
 /**
+ * Test suite for CSS2XPath
+ *
  * @copyright   Copyright 2016, Kroc Camen, all rights reserved
  * @author      Kroc Camen <kroc@camendesign.com>
  * @license     BSD-2-Clause
@@ -9,11 +11,12 @@
  */
 
 /* because programming errors in our testing code would be a very bad thing, we will force PHP to emit all errors
-   including simple warnings. since PHPUnit will catch PHP errors, a mistake in the test code will appear as if the
-   particular test failed due to the test code linting error. This isn't ideal, but it's better than a typo in the
-   test code causing a test to give wrong results */
+ * including simple warnings. since PHPUnit will catch PHP errors, a mistake in the test code will appear as if the
+ * particular test failed due to the test code linting error. This isn't ideal, but it's better than a typo in the
+ * test code causing a test to give wrong results */
 error_reporting( E_ALL | E_STRICT );
 
+/* css2xpath provides custom PHPUnit assertions to make XML comparisons _much_ easier */
 require_once 'css2xpathPHPUnit.php';
 
 /**
@@ -25,7 +28,7 @@ require_once 'css2xpathPHPUnit.php';
  * @coversDefaultClass \kroc\css2xpath
  */
 class TranslateQueryTest
-        extends CSS2XPath_TestCase //PHPUnit_Framework_TestCase
+        extends CSS2XPath_TestCase  //PHPUnit_Framework_TestCase
 {
         /**
          * @test
@@ -42,6 +45,7 @@ class TranslateQueryTest
                 //'CSS Universal Type selector'
                 $this->assertCSS2XPathSerializedXMLEquals(
                         '*'
+                        //all elements should be selected:
                 ,       '<e : 1st-level <f : 2nd-level <g : 3rd-level >>>'
                 ,       '<e : 1st-level <f : 2nd-level <g : 3rd-level >>><f : 2nd-level <g : 3rd-level >><g : 3rd-level >'
                 );
@@ -49,6 +53,7 @@ class TranslateQueryTest
                 //'CSS Type selector'
                 $this->assertCSS2XPathSerializedXMLEquals(
                         'f'
+                        //only the 'f' elements should be selected (including their children):
                 ,       '<e : 1st-level <f : 2nd-level <g : 3rd-level >><f : 2nd-level >>'
                 ,       '<f : 2nd-level <g : 3rd-level >><f : 2nd-level >'
                 );
@@ -84,7 +89,7 @@ class TranslateQueryTest
                 ,  'CSS Namespaceless Type selector'
                 );
 */
-                //CSS Selector Groups
+                //'CSS Selector Groups'
                 $this->assertCSS2XPathSerializedXMLEquals(
                         'a, c'
                 ,       '<a : left-hand ><b : middle-man ><c : right-hand >'
@@ -93,11 +98,11 @@ class TranslateQueryTest
                 
                 /* CSS Attribute Selectors:
                  * ------------------------------------------------------------------------------------------------------ */
-                //CSS Attribute selector
+                //'CSS Attribute selector
                 $this->assertCSS2XPathSerializedXMLEquals(
                         'e[attr]'
                 ,       '<e @attr><e : <e @attr value >>'
-                ,       '<e @attr>'
+                ,       '<e @attr><e @attr value >'
                 );
                 
 /*              $this->assertEquals(
@@ -530,12 +535,14 @@ class TranslateQueryTest
 */
                 /* CSS Combinators:
                  * ------------------------------------------------------------------------------------------------------ */
-/*
-                $this->assertEquals(
-                   '?'
-                ,  static::$TranslatorDefault->translateQuery( 'e f' )
-                ,  'CSS Descendant Combinator'
+                //'CSS Descendant Combinator'
+                $this->assertCSS2XPathSerializedXMLEquals(
+                        'a b'
+                ,       '<a : <b : <c : <b>>>>'
+                ,       '<b : <c : <b>>><b>'
                 );
+
+/*
                 $this->assertEquals(
                    '?'
                 ,  static::$TranslatorDefault->translateQuery( 'e > f' )
