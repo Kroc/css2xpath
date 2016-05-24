@@ -120,16 +120,22 @@ class TranslateQueryTest
                 ,  static::$TranslatorDefault->translateQuery( 'e[ns|attr]' )
                 ,  'CSS Namespace Attribute selector'
                 );
-                $this->assertEquals(
-                   '?'
-                ,  static::$TranslatorDefault->translateQuery( 'e[attr=value]' )
-                ,  'CSS Attribute Value selector'
+*/
+                //'CSS Attribute Value selector'
+                $this->assertCSS2XPathSerializedXMLEquals(
+                        'e[attr=value]'
+                ,       '<e @attr><e : <e @attr value >>'
+                ,       '<e @attr value >'
                 );
-                $this->assertEquals(
-                   '?'
-                ,  static::$TranslatorDefault->translateQuery( 'e[attr~=value]' )
-                ,  'CSS Attribute Whitespace Value selector'
+                
+                //'CSS Attribute Whitespace Value selector'
+                $this->assertCSS2XPathSerializedXMLEquals(
+                        'e[attr~=cat]'
+                ,       "<e @attr 'dog cow' ><e @attr 'rat cat dog' >"
+                ,       "<e @attr 'rat cat dog' >"
                 );
+                
+/*
                 $this->assertEquals(
                    '?'
                 ,  static::$TranslatorDefault->translateQuery( 'e[attr|=value]' )

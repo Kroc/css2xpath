@@ -259,8 +259,14 @@ class DOMElementSerialize
                                                         (?P>__IDENT)                    # attribute name
                                                         (?:                             # optional attribute value
                                                                 \s+                     # whitespace before value
-                                                                # TODO: allow quoted attributes
-                                                                [^\s]+                  # attribute value
+                                                                (?:
+                                                                #       single-quoted value
+                                                                        ' [^']+ '
+                                                                #       double-quoted value
+                                                                |       \" [^\"]+ \"
+                                                                #       unquoted attribute value
+                                                                |       [^\s<>]+
+                                                                )
                                                         )?
                                                 )+
                                         )?
@@ -321,6 +327,7 @@ class DOMElementSerialize
                 } else {
                         throw new \InvalidArgumentException(
                                 "The string passed does not conform to DOMSerialize's serialized XML form.\n"
+                                . "--> $serialized_xml"
                         );
                 }
                 
@@ -349,11 +356,14 @@ class DOMElementSerialize
                         )
                         (?:
                                 \s+
-                                (?P<value>
-                                        (?:
-                                                \S+
-                                        |       \s+(?!=$)
-                                        )+
+                                # This is a rarely used and little known regex feature: branch reset groups!
+                                (?|
+                                #       single-quoted value:
+                                         ' (?P<value> [^']+  )  '
+                                #       double-quoted value:
+                                |       \" (?P<value> [^\"]+ ) \"
+                                #       unquoted value:
+                                |          (?P<value> [^\s<>]+ )
                                 )
                                 \s*
                                 $
@@ -362,6 +372,8 @@ class DOMElementSerialize
                 ,       $serialized_attrs, $match, 0, $offset
                 )) {
                         $attr = $this->ownerDocument->createAttribute( $match['attr_name'] );
+                        
+                        print_r( $match );
                         
                         if (!empty( $match['value'] )) $attr->value = $match['value'];
                         
@@ -375,7 +387,7 @@ class DOMElementSerialize
                 } else {
                         throw new \InvalidArgumentException(
                                 "The string passed does not conform to DOMSerialize's serialized XML form.\n"
-                                . "--> " . $serialized_attrs
+                                . "--> $serialized_attrs"
                         );
                 };
                 
@@ -393,9 +405,11 @@ class DOMAttrSerialize
         {
                 $nodeSerialize = '@' . $this->nodeName;
                 
-                if (!empty( $text = $this->textContent ))
-                        $nodeSerialize .= htmlspecialchars( " $text", ENT_QUOTES, 'UTF-8' )
-                ;
+                if (!empty( $text = $this->textContent )) {
+                        $text = htmlspecialchars( $text, ENT_QUOTES, 'UTF-8' );
+                        /** @todo non-space whitespace?? */
+                        $nodeSerialize .= (strpos( $text, ' ' ) !== FALSE) ? " '$text'" : " $text";
+                }
                 
                 return $nodeSerialize;
         }

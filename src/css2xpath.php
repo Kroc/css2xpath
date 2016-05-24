@@ -45,6 +45,7 @@ namespace kroc\css2xpath;
  *
  *      } catch (kroc\css2xpath\UntranslatableCSSException $e) {
  *              //...
+ *
  *      } catch (\Exception $e) {
  *              //...
  *      }
@@ -212,13 +213,9 @@ class Translator
         public function translateQuery ($query)
         {
                 //@todo: return what for an empty query?
-                if (empty(
-                        //leading & trailing whitespace is stripped so as not to be
-                        //confused for a CSS 'descendant combinator', i.e. 'a b'
-                        $query = trim( $query )
-                )) {
-                        return NULL;
-                }
+                /* leading & trailing whitespace is stripped so as not to be
+                 * confused for a CSS 'descendant combinator', i.e. 'a b' */
+                if (empty( $query = trim( $query ))) return NULL;
                 
                 //return from cache if possible:
                 if (in_array( $query, $this->cache )) return $this->cache[$query];
@@ -435,9 +432,14 @@ class Translator
                                         \s*
                                         (?P<comparator> [~|^$*]? = )
                                         \s*
-                                        (?P<quote> [\"']? )
+                                        # is there a wrapping quote?
+                                        ( [\"']? )
+                                                # TODO: use of square brackets in the quote!
                                                 (?P<value> [^\]]+ )
-                                        (?P=quote)
+                                        
+                                        # use the same quote to close
+                                        # (relative back-reference)
+                                        \g{-2}
                                 )?
                                 \s*
                                 \]
@@ -458,7 +460,7 @@ class Translator
                         /Aisux"
                       , substr( $css, $offset )
                       , $match
-                )) {
+                )) {        
                         /** @todo nth-child(even) needs the previous Part to go at the end! */
                         $return = array_merge(
                                 $return,
@@ -466,7 +468,7 @@ class Translator
                                         $match['comma'], $match['combinator'], $match['namespace'], $match['element'],
                                         $match['id'], $match['class'], $match['pseudo'], $match['nthof'], $match['nth'],
                                         $match['a'], $match['n'], $match['not'], $match['lang'], $match['attr'],
-                                        $match['comparator'], $match['quote'], $match['value']
+                                        $match['comparator'], $match['value']
                                 )
                         );
                         $offset += strlen( $match[0] );
@@ -500,7 +502,7 @@ class Translator
         private function translateFragment (
                 &$comma = '', &$combinator = '', &$namespace = '', &$element = '', &$id = '', &$class = '', &$pseudo = '',
                 &$nthof = '', &$nth = '', &$a = '', &$n = '', &$not = '', &$lang = '', &$attr = '', &$comparator = '',
-                &$quote = '', &$value = ''
+                &$value = ''
         ) {
                 switch (TRUE) {
                         /* element (and namespace)
